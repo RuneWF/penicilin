@@ -11,8 +11,7 @@ import brightway2 as bw
 # Importing self-made libraries
 from standards import *
 import results_figures as rfig
-import non_bio_co2 as nbc
-import import_ecoinvent_and_databases as ied
+import database_manipulation as dm
 
 
 # Function to join two paths
@@ -23,7 +22,7 @@ def join_path(path1, path2):
 def is_valid_flow(temp, flow):
     return (('H2' in temp or 'H4' in temp) and ('SU' in temp or 'REC' in temp) and temp not in flow)
 
-def get_all_flows(path, lcia_meth='recipe', bw_project="Single Use vs Multi Use", case_range=range(1, 3)):
+def get_all_flows(path, lcia_meth='recipe', bw_project="Penicillin", case_range=range(1, 3)):
     # Set the current Brightway project
     bd.projects.set_current(bw_project)
     
@@ -103,7 +102,7 @@ def get_all_flows(path, lcia_meth='recipe', bw_project="Single Use vs Multi Use"
 # Function to initialize the database and get all flows
 def initilization(path, lcia_method, ecoinevnt_paths, system_path, bw_project="Single Use vs Multi Use", case_range=range(1, 3)):
     # Setup the database with the provided paths
-    ied.database_setup(ecoinevnt_paths, system_path)
+    dm.database_setup(ecoinevnt_paths, system_path)
 
     # Get all flows and initialization parameters
     lst, initialization = get_all_flows(path, lcia_method, bw_project, case_range)
@@ -119,7 +118,7 @@ def lcia_impact_method(method='recipe'):
 
         # Using H (hierachly) due to it has a 100 year span
         # Obtaining the midpoint categpries and ignoring land transformation (Land use still included)
-        nbc.remove_bio_co2_recipe()
+        dm.remove_bio_co2_recipe()
         all_methods = [m for m in bw.methods if 'ReCiPe 2016 v1.03, midpoint (H) - no biogenic' in str(m) and 'no LT' not in str(m)] # Midpoint
 
         # Obtaining the endpoint categories and ignoring land transformation

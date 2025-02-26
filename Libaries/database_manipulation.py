@@ -221,9 +221,11 @@ def add_activity_to_biosphere3(df, act_dct):
         else:
             print(f"No update needed for {meth[1]}")
 
-def add_new_biosphere_activities(bw_project, path_github):
+def add_new_biosphere_activities(bw_project, path):
+    path_github, ecoinevnt_paths, system_path = s.paths(path)
+
     # Set the current Brightway2 project
-    bw.projects.set_current(bw_project)
+    bd.projects.set_current(bw_project)
     
     # Load the new impacts data from the specified path
     data_path = s.join_path(path_github, r"data\new_impacts.xlsx")
@@ -250,10 +252,12 @@ def delete_activity(database, activity_code):
     db = bw.Database(database)
 
     # Find the entry by its code
-    entry_to_delete = db.get(activity_code)
-    etd = entry_to_delete
+    try:
+        entry_to_delete = db.get(activity_code)
+        etd = entry_to_delete
+        # Delete the entry
+        entry_to_delete.delete()
+        print(f"{etd} has been deleted from {db}")
 
-    # Delete the entry
-    entry_to_delete.delete()
-
-    print(f"{etd} has been deleted from {db}")
+    except KeyError:
+        print(f"Activity with code {activity_code} does not exist in {database}")
