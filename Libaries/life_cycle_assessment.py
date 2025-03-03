@@ -1,8 +1,6 @@
 import pandas as pd
-import json
 import copy
 import re
-import os
 
 # Import BW25 packages
 import bw2data as bd
@@ -13,137 +11,64 @@ from standards import *
 import results_figures as rfig
 import database_manipulation as dm
 
-
-# Function to join two paths
-def join_path(path1, path2):
-    return os.path.join(path1, path2)
-
-# Function to check if a flow is valid
-def is_valid_flow(temp, flow):
-    return (('H2' in temp or 'H4' in temp) and ('SU' in temp or 'REC' in temp) and temp not in flow)
-
-def get_all_flows(path, lcia_meth='recipe', bw_project="Penicillin", case_range=range(1, 3)):
+def initilization(path, matching_database, lcia_meth='recipe', bw_project="Penicillin"):
     # Set the current Brightway project
     bd.projects.set_current(bw_project)
-    
-    # Define the database types
-    db_type = ['apos', 'consq', 'cut_off']
-
+    path_github, ecoinevnt_paths, system_path = data_paths(path)
+    dm.database_setup(path, matching_database)
+    dm.remove_bio_co2_recipe()
+    dm.add_new_biosphere_activities(bw_project, path)
     # Initialize dictionaries to store various information
-    flows = {}
-    save_dir = {}
-    database_name_dct = {}
-    file_name = {}
-    db_type_dct = {}
-    flow_legend = {}
-    file_name_unique_process = {}
-    sheet_name = {}
-    initialization = {}
+    file_name = []
+    file_name_unique_process = []
+    initialization = []
 
-    # Iterate over the specified case range
-    for nr in case_range:
-        # Iterate over each database type
-        for tp in db_type:
-            # Construct the database name
-            database_name = f'case{nr}' + '_' + tp
-            database_name_dct[database_name] = database_name
-            
-            # Get the database
-            db = bd.Database(database_name)
-            
-            flow = []
-            # Check if the database is case1
-            if 'case1' in str(db):
-                for act in db:
-                    temp = act['name']
-                    # Check if the flow is valid and add to the flow list
-                    if is_valid_flow(temp, flow):
-                        flow.append(temp)
-                    elif 'alubox' in temp and '+' in temp and 'eol' not in temp.lower():
-                        flow.append(temp)
-                flow.sort()
-                flow_leg = [
-                    'H2S',
-                    'H2R',
-                    'ASC',
-                    'ASW',
-                    'H4S',
-                    'H4R',
-                    'ALC',
-                    'ALW'
-                ]
-                sheet_name[database_name] = 'case1'
-            # Check if the database is case2
-            elif 'case2' in str(db):
-                for act in db:
-                    temp = act['name']
-                    if temp == 'SUD' or temp == 'MUD':
-                        flow.append(temp)
-                    flow_leg = ['SUD', 'MUD']
-                    sheet_name[database_name] = 'case2'
-                flow.sort()
-                flow.reverse()
 
-            # Store the flow and other information in the respective dictionaries
-            flows[database_name] = flow
-            dir_temp = results_folder(join_path(path, 'results'), f"case{nr}")
-            save_dir[database_name] = dir_temp
-            file_name[database_name] = join_path(dir_temp, f"data_case{nr}_{tp}_recipe.xlsx")
-            db_type_dct[database_name] = tp
-            flow_legend[database_name] = flow_leg
-            file_name_unique_process[database_name] = join_path(dir_temp, f"data_uniquie_case{nr}_{tp}_{lcia_meth}.xlsx")
-            initialization[database_name] = [bw_project, database_name, flow, lcia_meth, tp]
+    # Construct the database name
+    database_name = "penicillin"
+    
+    # Get the database
+    db = bd.Database(database_name)
+    
+    flow = []
+    # Check if the database is case1
+    for act in db:
+        temp = act['name']
+        # Check if the flow is valid and add to the flow list
+        if "pill" in temp or( "vial" in temp and "sc" in temp):
+            flow.append(temp)
+    
+    flow.sort()
+
+    # Store the flow and other information in the respective dictionaries
+    dir_temp = results_folder(join_path(path_github, 'results'), "LCIA")
+    file_name = join_path(dir_temp, "LCIA_results.xlsx")
+    file_name_unique_process = join_path(dir_temp, "LCIA_results_uniquie.xlsx")
+    initialization = [bw_project, database_name, flow, lcia_meth]
 
     # Create a list of the collected information
-    lst = [save_dir, file_name, flow_legend, file_name_unique_process, sheet_name]
+    file_info = [dir_temp, file_name, file_name_unique_process]
     
-    return lst, initialization
-
-# Function to initialize the database and get all flows
-def initilization(path, lcia_method, ecoinevnt_paths, system_path, bw_project="Single Use vs Multi Use", case_range=range(1, 3)):
-    # Setup the database with the provided paths
-    dm.database_setup(ecoinevnt_paths, system_path)
-
-    # Get all flows and initialization parameters
-    lst, initialization = get_all_flows(path, lcia_method, bw_project, case_range)
-    save_dir, file_name, flow_legend, file_name_unique_process, sheet_name = lst
-
-    # Return the collected information
-    return flow_legend, file_name, sheet_name, save_dir, initialization, file_name_unique_process
+    return file_info, initialization
 
 # Function to obtain the LCIA category to calculate the LCIA results
-def lcia_impact_method(method='recipe'):
-    # Checking if the LCIA method is ReCiPe, and ignores difference between lower and upper case 
-    if 'recipe' in method.lower():
+def lcia_impact_method():
+    # Using H (hierachly) due to it has a 100 year span
+    # Obtaining the midpoint categpries and ignoring land transformation (Land use still included)
+    dm.remove_bio_co2_recipe()
+    midpoint_method = [m for m in bw.methods if 'ReCiPe 2016 v1.03, midpoint (H) - no biogenic' in str(m) and 'no LT' not in str(m)] # Midpoint
 
-        # Using H (hierachly) due to it has a 100 year span
-        # Obtaining the midpoint categpries and ignoring land transformation (Land use still included)
-        dm.remove_bio_co2_recipe()
-        all_methods = [m for m in bw.methods if 'ReCiPe 2016 v1.03, midpoint (H) - no biogenic' in str(m) and 'no LT' not in str(m)] # Midpoint
+    # Obtaining the endpoint categories and ignoring land transformation
+    endpoint_method = [m for m in bw.methods if 'ReCiPe 2016 v1.03, endpoint (H) - no biogenic' in str(m) and 'no LT' not in str(m) and 'total' in str(m)]
 
-        # Obtaining the endpoint categories and ignoring land transformation
-        endpoint = [m for m in bw.methods if 'ReCiPe 2016 v1.03, endpoint (H) - no biogenic' in str(m) and 'no LT' not in str(m) and 'total' in str(m)]
-
-        # Combining midpoint and endpoint, where endpoint is added to the list of the midpoint categories
-        for meth in endpoint:
-            all_methods.append(meth)
-            
-        print('Recipe is selected')
-
-    # Checking if EF is choses for the LCIA method
-    elif 'ef' in method.lower():
-        all_methods = [m for m in bw.methods if 'EF v3.1 EN15804' in str(m) and "climate change:" not in str(m)]
-        print('EF is selected')
-
-    else:
-        print('Select either EF or ReCiPe as the LCIA methos')
-        all_methods = []
+    # Combining midpoint and endpoint, where endpoint is added to the list of the midpoint categories
+    all_methods = midpoint_method + endpoint_method
 
     # Returning the selected LCIA methods
     return all_methods
 
 # Function to initialize parameters for the LCIA calculations
-def LCA_initialization(database_name: str, flows: list, method: str) -> tuple:
+def LCA_initialization(database_name: str, flows: list) -> tuple:
     # Setting up an empty dictionary with the flows as the key
     procces_keys = {key: None for key in flows}
 
@@ -157,7 +82,6 @@ def LCA_initialization(database_name: str, flows: list, method: str) -> tuple:
                 procces_keys[act['name']] = act['code']
 
     process = []
-    key_counter = 0
 
     # Obtaining all the subprocesses in a list 
     for key, item in procces_keys.items():
@@ -166,16 +90,9 @@ def LCA_initialization(database_name: str, flows: list, method: str) -> tuple:
         except KeyError:
             print(f"Process with key '{item}' not found in the database '{db}'")
             process = None
-        key_counter += 1
     
     # Obtaining the impact categories for the LCIA calculations
-    impact_category = lcia_impact_method(method)
     
-    # Obtaining a shortened version of the impact categories for the plots
-    plot_x_axis = [0] * len(impact_category)
-    for i in range(len(plot_x_axis)):
-        plot_x_axis[i] = impact_category[i][2]
-
     product_details = {}
     product_details_code = {}
 
@@ -186,55 +103,18 @@ def LCA_initialization(database_name: str, flows: list, method: str) -> tuple:
             product_details_code[proc['name']] = []
 
             for exc in proc.exchanges():
-                if 'Use' in exc.output['name'] and exc['type'] == 'biosphere':
-                    product_details[proc['name']].append({exc.input['name']: [exc['amount'], exc.input]})
-
-                elif exc['type'] == 'technosphere':
+                if exc['type'] == 'technosphere' or ('Use' in exc.output['name'] and exc['type'] == 'biosphere'):
                     product_details[proc['name']].append({exc.input['name']: [exc['amount'], exc.input]})
         
     # Creating the Functional Unit (FU) to calculate for
-    FU = {key: {} for key in product_details.keys()}
+    func_unit = {key: {} for key in product_details.keys()}
     for key, item in product_details.items():
         for idx in item:
             for m in idx.values():
-                FU[key].update({m[1]: m[0]})
+                func_unit[key].update({m[1]: m[0]})
     
     print(f'Initialization is completed for {database_name}')
-    return FU, impact_category
-
-# saving the LCIA results to excel
-def save_LCIA_results(df, file_name, sheet_name):
-    # if type(impact_category) == tuple:
-    #     impact_category = [impact_category]
-
-    # Convert each cell to a JSON string for all columns
-    df_save = df.map(lambda x: json.dumps(x) if isinstance(x, list) else x)
-
-    # Save to Excel
-    with pd.ExcelWriter(file_name) as writer:
-        df_save.to_excel(writer, sheet_name=sheet_name, index=True, header=True)
-
-    print('DataFrame with nested lists written to Excel successfully.')
-
-
-# Function to import the LCIA results from excel
-def import_LCIA_results(file_name, impact_category):
-    
-    if type(impact_category) == tuple:
-        impact_category = [impact_category]
-    
-    # Reading from Excel
-    df = pd.read_excel(io=file_name, index_col=0)
-
-    # Convert JSON strings back to lists for all columns
-    df = df.map(lambda x: json.loads(x) if isinstance(x, str) and x.startswith('[') else x)
-    # Setting the index to the flow
-
-    # Updating column names
-    df.columns = impact_category
-
-    # Return the imported dataframe
-    return df
+    return func_unit, lcia_impact_method()
 
 # Function to seperate the midpoint and endpoint results for ReCiPe
 def recipe_dataframe_split(df):
@@ -246,7 +126,6 @@ def recipe_dataframe_split(df):
     df_midpoint = df[col_df[:-3]]
     df_endpoint = df[col_df[-3:]]
     
-
     return df_midpoint, df_endpoint
 
 # Function to create two dataframes, one where each subprocess' in the process are summed 
@@ -324,19 +203,19 @@ def rearrange_dataframe_index(df, database):
 
 def dataframe_results_handling(df, database_name, plot_x_axis_all, lcia_meth):
     # Rearrange the dataframe index based on the database name
-    df_rearranged = rearrange_dataframe_index(df, database_name)
+    # df_rearranged = rearrange_dataframe_index(df, database_name)
     
     # Check if the LCIA method is ReCiPe
     if 'recipe' in lcia_meth.lower():
         # Split the dataframe into midpoint and endpoint results
-        df_res, df_endpoint = recipe_dataframe_split(df_rearranged)
+        df_res, df_endpoint = recipe_dataframe_split(df)
         
         # Extract the endpoint categories from the plot x-axis
         plot_x_axis_end = plot_x_axis_all[-3:]
         
         # Extract the midpoint categories from the plot x-axis
         ic_mid = plot_x_axis_all[:-3]
-        plot_x_axis = []
+        plot_x_axis_mid = []
         
         # Process each midpoint category to create a shortened version for the plot x-axis
         for ic in ic_mid:
@@ -345,13 +224,14 @@ def dataframe_results_handling(df, database_name, plot_x_axis_all, lcia_meth):
                 string[0] = 'ODP'
             elif '1000' in string[0]:
                 string[0] = 'GWP'
-            plot_x_axis.append(string[0])
+            plot_x_axis_mid.append(string[0])
 
         # Return the processed dataframes and plot x-axis labels
-        return [df_res, df_endpoint], [plot_x_axis, plot_x_axis_end]
+        return [df_res, df_endpoint], [plot_x_axis_mid, plot_x_axis_end]
+
     else:
         # If the LCIA method is not ReCiPe, use the rearranged dataframe as is
-        df_res = df_rearranged
+        df_res = df
         plot_x_axis = plot_x_axis_all
 
         # Return the processed dataframe and plot x-axis labels

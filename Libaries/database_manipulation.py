@@ -59,10 +59,10 @@ reload_database.has_been_called = False
 def database_setup(path, matching_database, bw_project="Penicillin", sheet_names = "penicillin"):
     import_excel_database_to_brightway.has_been_called = False
 
-    path_github, ecoinevnt_paths, system_path = s.paths(path)
 
     # Set the current Brightway project
     bd.projects.set_current(bw_project)
+    path_github, ecoinevnt_paths, system_path = s.data_paths(path)
 
     # Check if biosphere database is already present
     if any("biosphere" in db for db in bd.databases):
@@ -74,23 +74,12 @@ def database_setup(path, matching_database, bw_project="Penicillin", sheet_names
     if 'ev391consq' in bd.databases:# and 'ev391apos' in bd.databases and 'ev391cutoff' in bd.databases:
         print('Ecoinvent 3.9.1 is already present in the project.')
     else:
-        # Import APOS database
-        # ei = bi.SingleOutputEcospold2Importer(dirpath=ecoinevnt_paths['ev391apos'], db_name='ev391apos')
-        # ei.apply_strategies()
-        # ei.statistics()
-        # ei.write_database()
 
         # Import Consequential database
         ei = bi.SingleOutputEcospold2Importer(dirpath=ecoinevnt_paths['ev391consq'], db_name='ev391consq')
         ei.apply_strategies()
         ei.statistics()
         ei.write_database()
-
-        # # Import Cut-off database
-        # ei = bi.SingleOutputEcospold2Importer(dirpath=ecoinevnt_paths['ev391cutoff'], db_name='ev391cutoff')
-        # ei.apply_strategies()
-        # ei.statistics()
-        # ei.write_database()
 
     data = pd.read_excel(system_path, sheet_name=sheet_names)
     if data.columns[1] not in bd.databases:
@@ -147,22 +136,9 @@ def remove_bio_co2_recipe():
                 new_methods[metod] = new_method_key
                 print(f"New method created: {new_method_key} with {len(recipe_no_bio_CO2)} CFs")
 
-def filtered_lcia_methods():
-    # Get all methods related to ReCiPe 2016 midpoint/endpoint (H) without biogenic
-    midpoint_method = [m for m in bw.methods if 'ReCiPe 2016 v1.03, midpoint (H) - no biogenic' in str(m) and 'no LT' not in str(m)]
-    endpoint_method = [m for m in bw.methods if 'ReCiPe 2016 v1.03, endpoint (H) - no biogenic' in str(m) and 'no LT' not in str(m)]
-
-    all_methods = midpoint_method + endpoint_method
-
-    # Filter methods related to ecotoxicity
-    meth_ecotoxicity = [m for m in all_methods if "ecotoxicity" in m[1] or "ecosystem quality" in m[1]]
-
-    return meth_ecotoxicity
-
 def create_new_bs3_activities(df):
     biosphere3 = bw.Database('biosphere3')
     # Get the list of columns from the dataframe
-    col = list(df.columns)
     new_flow = {}
     codes = {}
     
@@ -189,40 +165,60 @@ def create_new_bs3_activities(df):
     
     return codes
 
+def filtered_lcia_methods():
+    # Get all methods related to ReCiPe 2016 midpoint/endpoint (H) without biogenic
+    midpoint_method = [m for m in bw.methods if 'ReCiPe 2016 v1.03, midpoint (H) - no biogenic' in str(m) and 'no LT' not in str(m)]
+    endpoint_method = [m for m in bw.methods if 'ReCiPe 2016 v1.03, endpoint (H) - no biogenic' in str(m) and 'no LT' not in str(m)]
+
+    all_methods = midpoint_method + endpoint_method
+
+    # Filter methods related to ecotoxicity
+    meth_ecotoxicity = [m for m in all_methods if "ecotoxicity" in m[1] or "ecosystem quality" in m[1]]
+
+    return meth_ecotoxicity
+
 def add_activity_to_biosphere3(df, act_dct):
     # Filter methods related to ecotoxicity
-    meth_ecotoxicity = filtered_lcia_methods()
-    # Iterate over each method in meth_ecotoxicity
-    for meth in meth_ecotoxicity:
+    ecotoxicity_methods = filtered_lcia_methods()
+    
+    # Iterate over each method in ecotoxicity_methods
+    for method in ecotoxicity_methods:
         new_cfs = []
-        method_key = (meth[0], meth[1], meth[2])
-        method = bw.Method(method_key)
-        # Load existing characterization factors (CFs) for the method
-        existing_cfs = method.load()
-        # Iterate over each bioflow in the dataframe columns
-        for bioflow in df.columns:
-            # Iterate over each row in the dataframe
-            for imp, row in df.iterrows():
-                # Check if the impact category matches the method
-                if imp in meth[1]:
-                    new_cf = (((act_dct[bioflow][0], act_dct[bioflow][1])), row[bioflow])
-                    # Check if the new CF is already present in the existing CFs
-                    if new_cf not in existing_cfs:
-                        # Append the new CF to the list
-                        new_cfs.append(new_cf)
-
-        # Combine existing CFs with new CFs
-        updated_cfs = existing_cfs + new_cfs
-
-        if new_cfs != []: 
-            # Save the updated method
-            method.write(updated_cfs)
-            print(f"{meth[1]} update complete.")
-        else:
-            print(f"No update needed for {meth[1]}")
+        method_key = (method[0], method[1], method[2])
+        method_obj = bw.Method(method_key)
+        
+        try:
+            # Load existing characterization factors (CFs) for the method
+            existing_cfs = method_obj.load()
+            
+            # Iterate over each bioflow in the dataframe columns
+            for bioflow in df.columns:
+                # Iterate over each row in the dataframe
+                for impact_category, row in df.iterrows():
+                    # Check if the impact category matches the method
+                    if impact_category in method[1]:
+                        new_cf = (((act_dct[bioflow][0], act_dct[bioflow][1])), row[bioflow])
+                        
+                        # Check if the new CF is already present in the existing CFs
+                        if new_cf not in existing_cfs:
+                            # Append the new CF to the list
+                            new_cfs.append(new_cf)
+            
+            # Combine existing CFs with new CFs
+            updated_cfs = existing_cfs + new_cfs
+            
+            if new_cfs:
+                # Save the updated method
+                method_obj.write(updated_cfs)
+                print(f"{method[1]} update complete.")
+            else:
+                print(f"No update needed for {method[1]}")
+        
+        except Exception as e:
+            print(f"An error occurred while processing {method[1]}: {e}")
 
 def add_new_biosphere_activities(bw_project, path):
-    path_github, ecoinevnt_paths, system_path = s.paths(path)
+    path_github, ecoinevnt_paths, system_path = s.data_paths(path)
 
     # Set the current Brightway2 project
     bd.projects.set_current(bw_project)

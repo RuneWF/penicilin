@@ -7,15 +7,12 @@ import bw2data as bd
 
 
 # Importing self-made libaries
-import standards as s
+from standards import *
 import life_cycle_assessment as lc
 import sensitivity_case1 as c1
 import sensitivity_case2 as c2
 import results_figures as rfig
- 
 
-def join_path(path1, path2):
-    return os.path.join(path1, path2)
 
 def get_all_flows(path):
     # Set the current Brightway2 project
@@ -65,7 +62,7 @@ def get_all_flows(path):
             flows[database_name] = flow
             
             # Create the results folder and store the directory path
-            dir_temp = s.results_folder(join_path(path, 'results'), f"case{nr}")
+            dir_temp = results_folder(join_path(path, 'results'), f"case{nr}")
             save_dir[database_name] = dir_temp
             
             # Store the file name for the results
@@ -233,7 +230,7 @@ def autoclave_gwp_impact_case1(variables, path):
                     unique_process_index.append(str(exc.input))
 
     unique_process_index.sort()
-    save_dir_case1 = s.results_folder(join_path(path, "results"), 'case1')
+    save_dir_case1 = results_folder(join_path(path, "results"), 'case1')
     results_path = join_path(save_dir_case1, f"data_uniquie_case1_{db_type}_recipe.xlsx")
     df_unique = lc.import_LCIA_results(results_path, impact_category)
     autoclave_gwp = None

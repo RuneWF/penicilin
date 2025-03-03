@@ -7,7 +7,7 @@ def reload_lib(lib):
         Parameters:
         lib (list): A list of libraries (modules) to reload.
     """
-    if isinstance(lib, type(list)):
+    if isinstance(lib, list):
         for l in lib:
             if isinstance(l, type(importlib)):
                 importlib.reload(l)
@@ -16,6 +16,6 @@ def reload_lib(lib):
     elif isinstance(lib, type(importlib)):
         importlib.reload(lib)
     else:
-        print(f"Warning: {lib} is not a module or a list of modules and cannot be reloaded.")
+        print(f"Warning: {lib} is not a module or a list of modules and cannot be reloaded.\n")
 
     

@@ -7,14 +7,8 @@ import re
 
 import life_cycle_assessment as lc
 import lcia_results as lr
-import standards as s
+from standards import *
 
-def color_range():
-    cmap = plt.get_cmap('Accent')
-    return [cmap(i) for i in np.linspace(0, 1, 9)]
-
-def join_path(path1, path2):
-    return os.path.join(path1, path2)
 
 def category_organization(database_name):
 
@@ -40,7 +34,6 @@ def category_organization(database_name):
 # Function to update the flow name and simplify them
 def flow_name_update(x, gwp, case):
     x_og = x
-
 
     if '1' in case:
         
@@ -143,15 +136,14 @@ def process_categorizing(df_GWP, case, flow_legend, columns):
     key_dic = {}
 
     # Collect the data into the dictionary
-    for i, p in enumerate(GWP_value):
-        for a, b in enumerate(p):
-            key = (flow_legend[i], x_axis[i][a])
+    for scenario, lst in enumerate(GWP_value):
+        for idx, gwp in enumerate(lst):
+            key = (flow_legend[scenario], x_axis[scenario][idx])
             # print(x_axis[i][a])
-
             if key in key_dic:
-                key_dic[key] += b
+                key_dic[key] += gwp
             else:
-                key_dic[key] = b
+                key_dic[key] = gwp
 
     # Convert the dictionary into a DataFrame
     df = pd.DataFrame(list(key_dic.items()), columns=['Category', 'Value'])
@@ -179,67 +171,61 @@ def process_categorizing(df_GWP, case, flow_legend, columns):
                 
     return df_stack_updated, totals_df
 
-def results_dataframe(initialization, file_name, file_name_unique_process, sheet_name):
-    df, plot_x_axis_all, impact_categories, unique = {}, {}, {}, {}
-    for key, item in initialization.items():
-        print(f"Perfoming LCA for {key}")
-        # print(file_name_unique_process[key])
-        df[key], plot_x_axis_all[key], impact_categories[key] = lr.quick_LCIA(item, file_name[key], file_name_unique_process[key], sheet_name[key])
-        print()
+
+def scenario_seperation(df):
+    scenarios = ["sc1", "sc2", "sc3"]
+    data_df = {}
+    for sc in scenarios:
+        temp = pd.DataFrame(0, index=[0, 1], columns=df.columns, dtype=object)
+        
+        data_df[sc] = pd.DataFrame()
+        
+
+        for col in df.columns:
+            sc_plc = 0
+            idx_lst = []
+            for idx, row in df.iterrows():
+                if sc in idx:
+                    try:
+                        temp.at[sc_plc, col] = row[col]
+                        idx_lst.append(idx)
+                        sc_plc +=1
+                    except IndexError as e:
+                        print(f"{e} for {sc_plc}")
+
+        temp.index = idx_lst
+        data_df[sc] = temp
     
-    return df, plot_x_axis_all, impact_categories, unique
+    return data_df
 
-def data_set_up(path, lcia_method, ecoinevnt_paths, system_path):
-    data = {
-    'case1' : {},
-    'case2' : {}
-    }
-    flow_legend, file_name, sheet_name, _, initialization, file_name_unique_process = lc.initilization(path, lcia_method, ecoinevnt_paths, system_path)
-    df, plot_x_axis_all, impact_categories, unique = results_dataframe(initialization, file_name, file_name_unique_process, sheet_name)
+def data_set_up(path, matching_database, lcia_method, bw_project):
+    file_info, initialization = lc.initilization(path, matching_database, lcia_method, bw_project)
+    _, file_name, file_name_unique_process = file_info 
+    df_all, plot_x_axis_all, impact_categories = lr.quick_LCIA(initialization, file_name, file_name_unique_process, "penicillin")
+    data_df = scenario_seperation(df_all)
+    database_name = initialization[1]
 
-    for key, item in initialization.items():
+    data = {}
 
-        database_name = item[1]
-        if 'apos' not in database_name:
-            if '1' in database_name:
-                df_res, plot_x_axis_lst = lc.dataframe_results_handling(df[key], database_name, plot_x_axis_all[key], item[3])
-                if type(df_res) is list:
-                    df_mid, df_endpoint = df_res
-                    plot_x_axis, plot_x_axis_end = plot_x_axis_lst
+    for sc, df in data_df.items():
+        df_res, plot_x_axis_lst = lc.dataframe_results_handling(df, database_name, plot_x_axis_all, initialization[3])
+        if type(df_res) is list:
+            df_mid, df_endpoint = df_res
 
+        _, df_scaled = lc.dataframe_element_scaling(df_mid)
+        df_col = [df_mid.columns[1]]
+        df_GWP = df_mid[df_col]
 
-                _, df_scaled = lc.dataframe_element_scaling(df_mid)
-                df_col = [df_mid.columns[1]]
-                df_GWP = df_mid[df_col]
+        if 'recipe' in initialization[3].lower():
+            _, df_scaled_e = lc.dataframe_element_scaling(df_endpoint)
+        
+        data[sc] = [df_scaled, df_scaled_e, df_GWP]
+    
+    # columns = lc.unique_elements_list(database_name)
+    # df_be, ignore = process_categorizing(df_GWP, database_name, flow_legend, columns)
 
-                if 'recipe' in item[3].lower():
-                    _, df_scaled_e = lc.dataframe_element_scaling(df_endpoint)
-                
-                # inputs = [flow_legend[key], colors, save_dir[key], item[4], database_name]
-                columns = lc.unique_elements_list(database_name)
-                df_be, ignore = process_categorizing(df_GWP, database_name, flow_legend[key], columns)
-
-                data['case1'].update({key : [df_scaled, df_scaled_e, df_GWP, df_be]})
-            elif '2' in database_name:
-                df_res, plot_x_axis_lst = lc.dataframe_results_handling(df[key], database_name, plot_x_axis_all[key], item[3])
-                if type(df_res) is list:
-                    df_mid, df_endpoint = df_res
-                    plot_x_axis, plot_x_axis_end = plot_x_axis_lst
-
-
-                _, df_scaled = lc.dataframe_element_scaling(df_mid)
-                df_col = [df_mid.columns[1]]
-                df_GWP = df_mid[df_col]
-
-                if 'recipe' in item[3].lower():
-                    _, df_scaled_e = lc.dataframe_element_scaling(df_endpoint)
-                
-                columns = lc.unique_elements_list(database_name)
-                df_be, ignore = process_categorizing(df_GWP, database_name, flow_legend[key], columns)
-
-                # inputs = [flow_legend[key], colors, save_dir[key], item[4], database_name]
-                data['case2'].update({key : [df_scaled, df_scaled_e, df_GWP, df_be]})
-
+    
+  
     return data
 
 def legend_text(text):
@@ -282,137 +268,122 @@ def plot_title_text(lca_type):
     else:
         return ''
 
-def midpoint_graph(data, case, recipe, plot_x_axis, initialization, folder):
+def midpoint_graph(data, recipe, plot_x_axis, folder):
     plot_text_size()
+    recipe = 'midpoint (H)'
     colors = color_range()
-    df1 = data[case][f'{case}_cut_off'][0]
-    df2 = data[case][f'{case}_consq'][0]
 
-    # Extract columns and indices for plotting
-    columns_to_plot = df1.columns
-    index_list = list(df1.index.values)
+    for sc_idx, (sc, val) in enumerate(data.items()):
+        df = val[0]
+        # Extract columns and indices for plotting
+        columns_to_plot = df.columns
+        index_list = list(df.index.values)
 
-    # Create the plot
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7, 9))
-    bar_width = 1 / (len(index_list) + 1)
-    index = np.arange(len(columns_to_plot))
+        # Create the plot
+        fig, ax = plt.subplots(1, figsize=(7, 5))
+        bar_width = 1 / (len(index_list) + 1)
+        index = np.arange(len(columns_to_plot))
 
-    # Plot each group of bars
-    for i, process in enumerate(df1.index):
-        values = df1.loc[process, columns_to_plot].values
-        color = colors[i % len(colors)]  # Ensure color cycling
-        ax1.bar(index + i * bar_width, values, bar_width, label=process, color=color)
+        # Plot each group of bars
+        for i, process in enumerate(df.index):
+            values = df.loc[process, columns_to_plot].values
+            color = colors[i % len(colors)]  # Ensure color cycling
+            ax.bar(index + i * bar_width, values, bar_width, label=process, color=color)
 
-    for i, process in enumerate(df2.index):
-        values = df2.loc[process, columns_to_plot].values
-        color = colors[i % len(colors)]  # Ensure color cycling
-        ax2.bar(index + i * bar_width, values, bar_width, label=process, color=color)
+        # Set title and labels
+        ax.set_title(f"Scenario {sc_idx+1} - {recipe}")  
+        ax.set_xticks(index + bar_width * (len(index_list) - 1) / 2)
+        ax.set_xticklabels(plot_x_axis, rotation=90)  # Added rotation here
+        ax.set_yticks(np.arange(0, 1 + 0.001, step=0.1))
 
-    # Format impact category string
+ 
+        # xlim(sc, ax, columns_to_plot)
 
-    # Set title and labels
-    ax1.set_title(f"{plot_title_text('cut')} - {recipe}")  
-    ax1.set_xticks(index + bar_width * (len(index_list) - 1) / 2)
-    ax1.set_xticklabels(plot_x_axis, rotation=90)  # Added rotation here
-    ax1.set_yticks(np.arange(-1, 1 + 0.001, step=0.2))
+        x_pos = 0.94
 
-    ax2.set_title(f"{plot_title_text('consq')} - {recipe}")
-    ax2.set_xticks(index + bar_width * (len(index_list) - 1) / 2)
-    ax2.set_xticklabels(plot_x_axis, rotation=90)  # Added rotation here
-    ax2.set_yticks(np.arange(-1, 1 + 0.001, step=0.2))
-
-    xlim(case, ax1, ax2, columns_to_plot)
-
-    x_pos = 0.97
+        leg_idx = []
+        for txt in df.index:
+            txt = txt.replace(f" {sc}", "")
+            leg_idx.append(txt)
 
 
-    fig.legend(
-        legend_text(initialization[f'{case}_consq'][1]),
-        loc='upper left',
-        bbox_to_anchor=(0.965, x_pos),
-        ncol= 1,  # Adjust the number of columns based on legend size
-        fontsize=10,
-        frameon=False
-    )
+        fig.legend(
+            leg_idx,
+            loc='upper left',
+            bbox_to_anchor=(0.965, x_pos),
+            ncol= 1,  # Adjust the number of columns based on legend size
+            fontsize=10,
+            frameon=False
+        )
 
-    # Save the plot with high resolution
-    output_file = os.path.join(
-        folder,
-        f'{recipe}_{case}.png'
-    )
-    plt.tight_layout()
-    plt.savefig(output_file, dpi=300, format='png', bbox_inches='tight')
-    plt.show()
+        # Save the plot with high resolution
+        output_file = os.path.join(
+            folder,
+            f'{recipe}_{sc}.png'
+        )
+        plt.tight_layout()
+        plt.savefig(output_file, dpi=300, format='png', bbox_inches='tight')
+        plt.show()
 
-def endpoint_graph(data, case, recipe, plot_x_axis_end, initialization, folder):
+def endpoint_graph(data, recipe, plot_x_axis_end, folder):
     plot_text_size()
     colors = color_range()
     recipe = 'endpoint (H)'
-    plt.rcParams.update({
-        'font.size': 12,      # General font size
-        'axes.titlesize': 14, # Title font size
-        'axes.labelsize': 12, # Axis labels font size
-        'legend.fontsize': 10 # Legend font size
-        }) 
 
-    df1 = data[case][f'{case}_cut_off'][1]
-    df2 = data[case][f'{case}_consq'][1]
+    plot_text_size()
+    colors = color_range()
 
-    # Extract columns and indices for plotting
-    columns_to_plot = df1.columns
-    index_list = list(df1.index.values)
+    for sc_idx, (sc, val) in enumerate(data.items()):
+        df = val[1]
+        # Extract columns and indices for plotting
+        columns_to_plot = df.columns
+        index_list = list(df.index.values)
 
-    # Create the plot
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7, 9))
-    bar_width = 1 / (len(index_list) + 1)
-    index = np.arange(len(columns_to_plot))
+        # Create the plot
+        fig, ax = plt.subplots(1, figsize=(7, 5))
+        bar_width = 1 / (len(index_list) + 1)
+        index = np.arange(len(columns_to_plot))
 
-    # Plot each group of bars
-    for i, process in enumerate(df1.index):
-        values = df1.loc[process, columns_to_plot].values
-        color = colors[i % len(colors)]  # Ensure color cycling
-        ax1.bar(index + i * bar_width, values, bar_width, label=process, color=color)
+        # Plot each group of bars
+        for i, process in enumerate(df.index):
+            values = df.loc[process, columns_to_plot].values
+            color = colors[i % len(colors)]  # Ensure color cycling
+            ax.bar(index + i * bar_width, values, bar_width, label=process, color=color)
 
-    for i, process in enumerate(df2.index):
-        values = df2.loc[process, columns_to_plot].values
-        color = colors[i % len(colors)]  # Ensure color cycling
-        ax2.bar(index + i * bar_width, values, bar_width, label=process, color=color)
+        # Set title and labels
+        ax.set_title(f"Scenario {sc_idx+1} - {recipe}")  
+        ax.set_xticks(index + bar_width * (len(index_list) - 1) / 2)
+        ax.set_xticklabels(plot_x_axis_end, rotation=0)  # Added rotation here
+        ax.set_yticks(np.arange(0, 1 + 0.001, step=0.1))
 
-    # Format impact category string
+ 
+        # xlim(sc, ax, columns_to_plot)
 
-    # Set title and labels
-    ax1.set_title(f"{plot_title_text('cut')} - {recipe}")  
-    ax1.set_xticks(index + bar_width * (len(index_list) - 1) / 2)
-    ax1.set_xticklabels(plot_x_axis_end, rotation=0)  # Added rotation here
+        x_pos = 0.94
 
-    ax2.set_title(f"{plot_title_text('consq')} - {recipe}")
-    ax2.set_xticks(index + bar_width * (len(index_list) - 1) / 2)
-    ax2.set_xticklabels(plot_x_axis_end, rotation=0)  # Added rotation here
+        leg_idx = []
+        for txt in df.index:
+            txt = txt.replace(f" {sc}", "")
+            leg_idx.append(txt)
 
 
-    xlim(case, ax1, ax2, columns_to_plot)
+        fig.legend(
+            leg_idx,
+            loc='upper left',
+            bbox_to_anchor=(0.965, x_pos),
+            ncol= 1,  # Adjust the number of columns based on legend size
+            fontsize=10,
+            frameon=False
+        )
 
-    x_pos = 0.97
-
-
-    fig.legend(
-        legend_text(initialization[f'{case}_consq'][1]),
-        loc='upper left',
-        bbox_to_anchor=(0.965, x_pos),
-        ncol= 1,  # Adjust the number of columns based on legend size
-        fontsize=10,
-        frameon=False
-    )
-
-
-    # Save the plot with high resolution
-    output_file = os.path.join(
-        folder,
-        f'{recipe}_{case}.png'
-    )
-    plt.tight_layout()
-    plt.savefig(output_file, dpi=300, format='png', bbox_inches='tight')
-    plt.show()
+        # Save the plot with high resolution
+        output_file = os.path.join(
+            folder,
+            f'{recipe}_{sc}.png'
+        )
+        plt.tight_layout()
+        plt.savefig(output_file, dpi=300, format='png', bbox_inches='tight')
+        plt.show()
 
 def gwp_figure_setup(data, case, path, initialization, flow_legend):
     df1gwp = data[case][f'{case}_cut_off'][2]
@@ -420,7 +391,7 @@ def gwp_figure_setup(data, case, path, initialization, flow_legend):
 
     flow_legend = legend_text(case)
 
-    folder = s.results_folder(join_path(path,'results'), case)
+    folder = results_folder(join_path(path,'results'), case)
 
 
     _, database_name1, _, _, tp = initialization[f'{case}_cut_off']
@@ -607,7 +578,7 @@ def break_even_setup(data, case, initialization, path):
     df1be.index = legend_text(initialization[f'{case}_cut_off'][1])
     df2be.index = legend_text(initialization[f'{case}_consq'][1])
 
-    folder = s.results_folder(join_path(path,'results'), case)
+    folder = results_folder(join_path(path,'results'), case)
 
     return df1be, df2be, folder
 
@@ -894,10 +865,10 @@ def be_figure(case, data, initialization, path):
     else:
         be2_figure(data, case, initialization, path)
 
-def create_results_figures(case, path, ecoinevnt_paths, system_path):
-    _, initialization = lc.get_all_flows(path, 'recipe')
-    folder = s.results_folder(join_path(path,'results'), case)
-    impact_categories = lc.lcia_impact_method('recipe')
+def create_results_figures(path, matching_database, lcia_method, bw_project):
+    path_github, ecoinevnt_paths, system_path = data_paths(path)
+    folder = results_folder(join_path(path_github,'results'), "figures")
+    impact_categories = lc.lcia_impact_method()
     plot_x_axis_all = [0] * len(impact_categories)
     for i in range(len(plot_x_axis_all)):
         plot_x_axis_all[i] = impact_categories[i][2]
@@ -908,7 +879,7 @@ def create_results_figures(case, path, ecoinevnt_paths, system_path):
     # Extract the midpoint categories from the plot x-axis
     ic_mid = plot_x_axis_all[:-3]
 
-    plot_x_axis = []
+    plot_x_axis_mid = []
     # Process each midpoint category to create a shortened version for the plot x-axis
     for ic in ic_mid:
         string = re.findall(r'\((.*?)\)', ic)
@@ -916,11 +887,11 @@ def create_results_figures(case, path, ecoinevnt_paths, system_path):
             string[0] = 'ODP'
         elif '1000' in string[0]:
             string[0] = 'GWP'
-        plot_x_axis.append(string[0])
+        plot_x_axis_mid.append(string[0])
     
-    data = data_set_up(path, 'recipe', ecoinevnt_paths, system_path)
+    data = data_set_up(path, matching_database, lcia_method, bw_project)
 
-    midpoint_graph(data, case, 'recipe', plot_x_axis, initialization, folder)
-    endpoint_graph(data, case, 'recipe', plot_x_axis_end, initialization, folder)
-    gwp_figure(data, case, path, initialization)
-    be_figure(case, data, initialization, path)
+    midpoint_graph(data, 'recipe', plot_x_axis_mid, folder)
+    endpoint_graph(data, 'recipe', plot_x_axis_end, folder)
+    # gwp_figure(data, case, path, initialization)
+    # be_figure(case, data, initialization, path)

@@ -1,5 +1,8 @@
 import os
-
+import json
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 
 # Function to create a results folder with a specified path and name
 def results_folder(path, name, db=None):
@@ -29,8 +32,7 @@ def results_folder(path, name, db=None):
 def join_path(path1, path2):
     return os.path.join(path1, path2)
 
-
-def paths(path):
+def data_paths(path):
     # Path to where the code is stored
     path_github = join_path(path, r'RA\penicilin')
     # Specifying the LCIA method
@@ -43,3 +45,37 @@ def paths(path):
 
     
     return path_github, ecoinevnt_paths, system_path
+
+# saving the LCIA results to excel
+def save_LCIA_results(df, file_name, sheet_name):
+    # Convert each cell to a JSON string for all columns
+    df_save = df.map(lambda x: json.dumps(x) if isinstance(x, list) else x)
+
+    # Save to Excel
+    with pd.ExcelWriter(file_name) as writer:
+        df_save.to_excel(writer, sheet_name=sheet_name, index=True, header=True)
+
+    print(f'DataFrame saved successfully to {file_name}')
+
+
+# Function to import the LCIA results from excel
+def import_LCIA_results(file_name, impact_category):
+    
+    if type(impact_category) == tuple:
+        impact_category = [impact_category]
+    
+    # Reading from Excel
+    df = pd.read_excel(io=file_name, index_col=0)
+
+    # Convert JSON strings back to lists for all columns
+    df = df.map(lambda x: json.loads(x) if isinstance(x, str) and x.startswith('[') else x)
+
+    # Updating column names
+    df.columns = impact_category
+
+    # Return the imported dataframe
+    return df
+
+def color_range():
+    cmap = plt.get_cmap('Accent')
+    return [cmap(i) for i in np.linspace(0, 1, 9)]
