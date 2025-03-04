@@ -171,60 +171,83 @@ def process_categorizing(df_GWP, case, flow_legend, columns):
                 
     return df_stack_updated, totals_df
 
-
 def scenario_seperation(df):
-    scenarios = ["sc1", "sc2", "sc3"]
+    # Define the scenarios to separate
+    scenarios = ["sc1", "sc2"]
     data_df = {}
+    
+    # Loop through each scenario
     for sc in scenarios:
+        # Create a temporary DataFrame to store scenario-specific data
         temp = pd.DataFrame(0, index=[0, 1], columns=df.columns, dtype=object)
-        
         data_df[sc] = pd.DataFrame()
-        
 
+        # Loop through each column in the DataFrame
         for col in df.columns:
             sc_plc = 0
             idx_lst = []
+            # Loop through each row in the DataFrame
             for idx, row in df.iterrows():
                 if sc in idx:
                     try:
+                        # Assign the row value to the temporary DataFrame
                         temp.at[sc_plc, col] = row[col]
                         idx_lst.append(idx)
-                        sc_plc +=1
-                    except IndexError as e:
-                        print(f"{e} for {sc_plc}")
-
-        temp.index = idx_lst
+                        sc_plc += 1
+                    except (IndexError) as e:
+                        print(f"IndexError: {e} for {sc_plc}")
+        try:
+            # Set the index of the temporary DataFrame to the collected indices
+            temp.index = idx_lst
+        except ValueError as e:
+            print(f"ValueError: {e} for {idx_lst}")
         data_df[sc] = temp
+
+    # Create a copy of the original DataFrame
+    df_copy = dc(df)
+    # Drop rows that belong to "sc1" from the copied DataFrame
+    for idx, row in df_copy.iterrows():
+        if "sc1" in idx:
+            df_copy = df_copy.drop(idx)
+    
+    # Assign the remaining data to "sc3"
+    data_df["sc3"] = df_copy
     
     return data_df
 
 def data_set_up(path, matching_database, lcia_method, bw_project):
+    # Initialize the life cycle assessment and get file information
     file_info, initialization = lc.initilization(path, matching_database, lcia_method, bw_project)
     _, file_name, file_name_unique_process = file_info 
+
+    # Perform quick LCIA (Life Cycle Impact Assessment) and get the results
     df_all, plot_x_axis_all, impact_categories = lr.quick_LCIA(initialization, file_name, file_name_unique_process, "penicillin")
+
+    # Separate the scenarios from the results
     data_df = scenario_seperation(df_all)
     database_name = initialization[1]
 
     data = {}
 
+    # Process each scenario's data
     for sc, df in data_df.items():
         df_res, plot_x_axis_lst = lc.dataframe_results_handling(df, database_name, plot_x_axis_all, initialization[3])
+
         if type(df_res) is list:
             df_mid, df_endpoint = df_res
 
-        _, df_scaled = lc.dataframe_element_scaling(df_mid)
+        # Scale the data for midpoint and endpoint
+        df_tot_mid, df_scaled_mid = lc.dataframe_element_scaling(df_mid)
+        
+        if 'recipe' in initialization[3].lower():
+            df_tot_end, df_scaled_end = lc.dataframe_element_scaling(df_endpoint)
+
+        # Extract the GWP (Global Warming Potential) column
         df_col = [df_mid.columns[1]]
         df_GWP = df_mid[df_col]
 
-        if 'recipe' in initialization[3].lower():
-            _, df_scaled_e = lc.dataframe_element_scaling(df_endpoint)
-        
-        data[sc] = [df_scaled, df_scaled_e, df_GWP]
-    
-    # columns = lc.unique_elements_list(database_name)
-    # df_be, ignore = process_categorizing(df_GWP, database_name, flow_legend, columns)
-
-    
+        # Store the processed data in the dictionary
+        data[sc] = [df_scaled_mid, df_scaled_end, df_GWP, df_tot_mid, df_tot_end]
   
     return data
 
@@ -268,6 +291,17 @@ def plot_title_text(lca_type):
     else:
         return ''
 
+def mid_end_legend_text(df, sc):
+    leg_idx = []
+    for txt in df.index:
+        if "sc3" not in txt:
+            txt = txt.replace(f" {sc}", "")
+            leg_idx.append(txt)
+        else:
+            txt = "sc3"
+            leg_idx.append(txt)
+    return leg_idx
+
 def midpoint_graph(data, recipe, plot_x_axis, folder):
     plot_text_size()
     recipe = 'midpoint (H)'
@@ -301,10 +335,7 @@ def midpoint_graph(data, recipe, plot_x_axis, folder):
 
         x_pos = 0.94
 
-        leg_idx = []
-        for txt in df.index:
-            txt = txt.replace(f" {sc}", "")
-            leg_idx.append(txt)
+        leg_idx = mid_end_legend_text(df, sc)
 
 
         fig.legend(
@@ -361,12 +392,8 @@ def endpoint_graph(data, recipe, plot_x_axis_end, folder):
 
         x_pos = 0.94
 
-        leg_idx = []
-        for txt in df.index:
-            txt = txt.replace(f" {sc}", "")
-            leg_idx.append(txt)
-
-
+        leg_idx = mid_end_legend_text(df, sc)
+        
         fig.legend(
             leg_idx,
             loc='upper left',
@@ -385,23 +412,17 @@ def endpoint_graph(data, recipe, plot_x_axis_end, folder):
         plt.savefig(output_file, dpi=300, format='png', bbox_inches='tight')
         plt.show()
 
-def gwp_figure_setup(data, case, path, initialization, flow_legend):
-    df1gwp = data[case][f'{case}_cut_off'][2]
-    df2gwp = data[case][f'{case}_consq'][2]
+def gwp_figure_setup(data, path, initialization, flow_legend, folder):
+    for sc, df in data.items():
 
-    flow_legend = legend_text(case)
+        _, database_name1, _, _, tp = initialization[f'{case}_cut_off']
+        columns1 = lc.unique_elements_list(database_name1)
+        
+        df1s, totals_df1 = process_categorizing(df1gwp, case, flow_legend, columns1)
 
-    folder = results_folder(join_path(path,'results'), case)
-
-
-    _, database_name1, _, _, tp = initialization[f'{case}_cut_off']
-    columns1 = lc.unique_elements_list(database_name1)
-    
-    df1s, totals_df1 = process_categorizing(df1gwp, case, flow_legend, columns1)
-
-    _, database_name2, _, _, tp = initialization[f'{case}_consq']
-    columns2 = lc.unique_elements_list(database_name2)
-    df2s, totals_df2 = process_categorizing(df2gwp, case, flow_legend, columns2)
+        _, database_name2, _, _, tp = initialization[f'{case}_consq']
+        columns2 = lc.unique_elements_list(database_name2)
+        df2s, totals_df2 = process_categorizing(df2gwp, case, flow_legend, columns2)
 
     
 
@@ -894,4 +915,3 @@ def create_results_figures(path, matching_database, lcia_method, bw_project):
     midpoint_graph(data, 'recipe', plot_x_axis_mid, folder)
     endpoint_graph(data, 'recipe', plot_x_axis_end, folder)
     # gwp_figure(data, case, path, initialization)
-    # be_figure(case, data, initialization, path)

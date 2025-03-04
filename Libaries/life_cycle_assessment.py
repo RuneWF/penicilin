@@ -35,7 +35,7 @@ def initilization(path, matching_database, lcia_meth='recipe', bw_project="Penic
     for act in db:
         temp = act['name']
         # Check if the flow is valid and add to the flow list
-        if "pill" in temp or( "vial" in temp and "sc" in temp):
+        if "pill" in temp or( "vial" in temp and "sc" in temp) or 'combined' in temp:
             flow.append(temp)
     
     flow.sort()
@@ -168,12 +168,16 @@ def unique_elements_list(database_name):
 def rearrange_dataframe_index(df, database):
     # Initialize a dictionary to store the new index positions
     idx_dct = {}
-    idx_lst = df.index
+    idx_lst = list(df.index)
     
     # Check if the database is 'case1'
-    if 'case1' in database:
+    if len(idx_lst) == 3:
+        print(idx_lst)
         # Define the new order of the index
-        plc_lst = [1, 0, 5, 4, 6, 7, 2, 3]
+        plc_lst = [2,   # new placement of the first index
+                   0,   # new placement of the second index
+                   1    # new placement of the third index
+                   ]
 
         # Assign the new order to the index dictionary
         for plc, idx in enumerate(df.index):
@@ -203,12 +207,12 @@ def rearrange_dataframe_index(df, database):
 
 def dataframe_results_handling(df, database_name, plot_x_axis_all, lcia_meth):
     # Rearrange the dataframe index based on the database name
-    # df_rearranged = rearrange_dataframe_index(df, database_name)
-    
+    df_rearranged = rearrange_dataframe_index(df, database_name)
+
     # Check if the LCIA method is ReCiPe
     if 'recipe' in lcia_meth.lower():
         # Split the dataframe into midpoint and endpoint results
-        df_res, df_endpoint = recipe_dataframe_split(df)
+        df_midpoint, df_endpoint = recipe_dataframe_split(df_rearranged)
         
         # Extract the endpoint categories from the plot x-axis
         plot_x_axis_end = plot_x_axis_all[-3:]
@@ -227,11 +231,11 @@ def dataframe_results_handling(df, database_name, plot_x_axis_all, lcia_meth):
             plot_x_axis_mid.append(string[0])
 
         # Return the processed dataframes and plot x-axis labels
-        return [df_res, df_endpoint], [plot_x_axis_mid, plot_x_axis_end]
+        return [df_midpoint, df_endpoint], [plot_x_axis_mid, plot_x_axis_end]
 
     else:
         # If the LCIA method is not ReCiPe, use the rearranged dataframe as is
-        df_res = df
+        df_res = df_rearranged
         plot_x_axis = plot_x_axis_all
 
         # Return the processed dataframe and plot x-axis labels
