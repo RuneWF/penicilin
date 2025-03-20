@@ -20,31 +20,38 @@ def import_excel_database_to_brightway(data, matching_database, path_github):
     # Loop through each database and match
     print(f"Matching database: {matching_database}")
     imp.match_database(matching_database, fields=('name', 'unit', 'location', 'reference product'))
-    print(f"Unlinked items after matching {matching_database}: {list(imp.unlinked)}")
+    if list(imp.unlinked):
+        print(f"Unlinked items after matching {matching_database}: {list(imp.unlinked)}")
 
     # Match without specifying a database
-    imp.match_database(fields=('name', 'unit', 'location'))
+    # imp.match_database(fields=('name', 'unit', 'location'))
 
     # Generate statistics and write results
     imp.statistics()
     imp.write_excel(only_unlinked=True)
     unlinked_items = list(imp.unlinked)
-    if reload_database.has_been_called == False:
-        imp.write_database()
+    imp.write_database()
 
     # Print unlinked items if needed
-    print(unlinked_items)
-    print(f'{data.columns[1]} is loaded into the database')
+    if unlinked_items:
+        print(unlinked_items)
+
     import_excel_database_to_brightway.has_been_called = True
 
 import_excel_database_to_brightway.has_been_called = False
 
-def reload_database(sheet_name, matching_database, system_path, path_github):
+def reload_database(matching_database, system_path, path_github, proj_database):
     reload_database.has_been_called = True
-    user_input = input("Do you want to reload the database? Enter 'y' for yes and 'n' for no")
+    user_input = input(f"Do you want to reload the {proj_database}? Enter 'y' for yes and 'n' for no")
     
     if user_input.lower() == 'y':
-        data = pd.read_excel(system_path, sheet_name=sheet_name)
+
+        data = pd.read_excel(system_path, sheet_name=matching_database)
+
+        # Removing the old database
+        db_old = bd.Database(proj_database)
+        db_old.deregister()
+
         import_excel_database_to_brightway(data, matching_database, path_github)
 
     elif user_input.lower() == 'n':
@@ -52,42 +59,34 @@ def reload_database(sheet_name, matching_database, system_path, path_github):
 
     else:
         print('Invalid argument, try again')
-        reload_database(sheet_name, matching_database, system_path)
+        reload_database(matching_database, matching_database, system_path)
 
 reload_database.has_been_called = False
 
-def database_setup(path, matching_database, bw_project="Penicillin", sheet_names = "penicillin"):
-    import_excel_database_to_brightway.has_been_called = False
+def import_databases(matching_database, path):
 
-
-    # Set the current Brightway project
-    bd.projects.set_current(bw_project)
     path_github, ecoinevnt_paths, system_path = s.data_paths(path)
 
-    # Check if biosphere database is already present
-    if any("biosphere" in db for db in bd.databases):
-        print('Biosphere is already present in the project.')
-    else:
-        bi.bw2setup()
-
     # Check if Ecoinvent databases are already present
-    if 'ev391consq' in bd.databases:# and 'ev391apos' in bd.databases and 'ev391cutoff' in bd.databases:
+    if matching_database in bd.databases:# and 'ev391apos' in bd.databases and 'ev391cutoff' in bd.databases:
         print('Ecoinvent 3.9.1 is already present in the project.')
     else:
 
         # Import Consequential database
-        ei = bi.SingleOutputEcospold2Importer(dirpath=ecoinevnt_paths['ev391consq'], db_name='ev391consq')
+        ei = bi.SingleOutputEcospold2Importer(dirpath=ecoinevnt_paths[matching_database], db_name=matching_database)
         ei.apply_strategies()
         ei.statistics()
         ei.write_database()
 
-    data = pd.read_excel(system_path, sheet_name=sheet_names)
-    if data.columns[1] not in bd.databases:
+    data = pd.read_excel(system_path, sheet_name=matching_database)
+    proj_database_str = data.columns[1]
+    if proj_database_str not in bd.databases:
         import_excel_database_to_brightway(data, matching_database, path_github)
-    
+
     # Reload databases if needed
     if import_excel_database_to_brightway.has_been_called is False:
-        reload_database(sheet_names, matching_database, system_path, path_github)
+        reload_database(matching_database, system_path, path_github, proj_database_str)
+
 
 def remove_bio_co2_recipe():
     all_methods = [m for m in bw.methods if 'ReCiPe 2016 v1.03, midpoint (H)' in str(m) and 'no LT' not in str(m)] # Midpoint
@@ -160,8 +159,8 @@ def create_new_bs3_activities(df):
             new_flow_entry = biosphere3.new_activity(code=codes[col], **new_flow[col])
             new_flow_entry.save()
             print(f"{col} is added to biosphere3")
-        else:
-            print(f"{col} is present in biosphere3")
+        # else:
+        #     print(f"{col} is present in biosphere3")
     
     return codes
 
@@ -211,8 +210,8 @@ def add_activity_to_biosphere3(df, act_dct):
                 # Save the updated method
                 method_obj.write(updated_cfs)
                 print(f"{method[1]} update complete.")
-            else:
-                print(f"No update needed for {method[1]}")
+            # else:
+            #     print(f"No update needed for {method[1]}")
         
         except Exception as e:
             print(f"An error occurred while processing {method[1]}: {e}")
@@ -243,17 +242,28 @@ def add_new_biosphere_activities(bw_project, path):
     # Add the new activities to the biosphere3 database
     add_activity_to_biosphere3(df, act_dct)
 
-def delete_activity(database, activity_code):
-    # Access the database
-    db = bw.Database(database)
 
-    # Find the entry by its code
-    try:
-        entry_to_delete = db.get(activity_code)
-        etd = entry_to_delete
-        # Delete the entry
-        entry_to_delete.delete()
-        print(f"{etd} has been deleted from {db}")
 
-    except KeyError:
-        print(f"Activity with code {activity_code} does not exist in {database}")
+def database_setup(path, matching_database, bw_project="Penicillin"):
+    import_excel_database_to_brightway.has_been_called = False
+
+    # Set the current Brightway project
+    bd.projects.set_current(bw_project)
+    
+
+    # Check if biosphere database is already present
+    if any("biosphere" in db for db in bd.databases):
+        pass
+        # print('Biosphere is already present in the project.')
+    else:
+        bi.bw2setup()
+
+    if isinstance(matching_database, str):
+        import_databases(matching_database, path)
+    elif isinstance(matching_database, list):
+        for db in matching_database:
+            import_databases(db, path)
+
+    if reload_database.has_been_called is False:
+        print("add new act")
+        add_new_biosphere_activities(bw_project, path)

@@ -4,6 +4,8 @@ import os
 import pandas as pd
 from copy import deepcopy as dc
 import re
+import bw2data as bd
+
 
 import life_cycle_assessment as lc
 import lcia_results as lr
@@ -215,9 +217,9 @@ def scenario_seperation(df):
     
     return data_df
 
-def data_set_up(path, matching_database, lcia_method, bw_project):
+def data_set_up(path, matching_database, database, lcia_method, bw_project):
     # Initialize the life cycle assessment and get file information
-    file_info, initialization = lc.initilization(path, matching_database, lcia_method, bw_project)
+    file_info, initialization = lc.initilization(path, matching_database, database, lcia_method, bw_project)
     _, file_name, file_name_unique_process = file_info 
 
     # Perform quick LCIA (Life Cycle Impact Assessment) and get the results
@@ -886,7 +888,10 @@ def be_figure(case, data, initialization, path):
     else:
         be2_figure(data, case, initialization, path)
 
-def create_results_figures(path, matching_database, lcia_method, bw_project):
+def create_results_figures(path, matching_database, database, lcia_method, bw_project):
+    # Set the current Brightway project
+    bd.projects.set_current(bw_project)
+
     path_github, ecoinevnt_paths, system_path = data_paths(path)
     folder = results_folder(join_path(path_github,'results'), "figures")
     impact_categories = lc.lcia_impact_method()
@@ -910,7 +915,7 @@ def create_results_figures(path, matching_database, lcia_method, bw_project):
             string[0] = 'GWP'
         plot_x_axis_mid.append(string[0])
     
-    data = data_set_up(path, matching_database, lcia_method, bw_project)
+    data = data_set_up(path, matching_database, database, lcia_method, bw_project)
 
     midpoint_graph(data, 'recipe', plot_x_axis_mid, folder)
     endpoint_graph(data, 'recipe', plot_x_axis_end, folder)

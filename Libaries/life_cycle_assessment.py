@@ -11,7 +11,7 @@ from standards import *
 import results_figures as rfig
 import database_manipulation as dm
 
-def initilization(path, matching_database, lcia_meth='recipe', bw_project="Penicillin"):
+def initilization(path, matching_database, database_name, lcia_meth='recipe', bw_project="Penicillin"):
     # Set the current Brightway project
     bd.projects.set_current(bw_project)
     path_github, ecoinevnt_paths, system_path = data_paths(path)
@@ -22,10 +22,6 @@ def initilization(path, matching_database, lcia_meth='recipe', bw_project="Penic
     file_name = []
     file_name_unique_process = []
     initialization = []
-
-
-    # Construct the database name
-    database_name = "penicillin"
     
     # Get the database
     db = bd.Database(database_name)

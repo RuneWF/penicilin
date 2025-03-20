@@ -17,11 +17,12 @@ def results_folder(path, name, db=None):
     try:
         # Check if the directory already exists
         if os.path.exists(save_dir):
-            print(f'{temp} already exist')
+            pass
+            # print(f'{temp} already exist')
         else:
             # Create the directory if it doesn't exist
             os.makedirs(save_dir, exist_ok=True)
-            print(f'The folder {temp} is created')
+            print(f'The folder {save_dir} is created')
     
     except (OSError, FileExistsError) as e:
         # Handle potential UnboundLocalError
