@@ -8,7 +8,6 @@ import brightway2 as bw
 
 # Importing self-made libraries
 from standards import *
-import results_figures as rfig
 import database_manipulation as dm
 
 def initilization(path, matching_database, database_name, lcia_meth='recipe', bw_project="Penicillin"):
@@ -18,6 +17,7 @@ def initilization(path, matching_database, database_name, lcia_meth='recipe', bw
     dm.database_setup(path, matching_database)
     dm.remove_bio_co2_recipe()
     dm.add_new_biosphere_activities(bw_project, path)
+
     # Initialize dictionaries to store various information
     file_name = []
     file_name_unique_process = []
@@ -27,7 +27,7 @@ def initilization(path, matching_database, database_name, lcia_meth='recipe', bw
     db = bd.Database(database_name)
     
     flow = []
-    # Check if the database is case1
+
     for act in db:
         temp = act['name']
         # Check if the flow is valid and add to the flow list
@@ -49,8 +49,6 @@ def initilization(path, matching_database, database_name, lcia_meth='recipe', bw
 
 # Function to obtain the LCIA category to calculate the LCIA results
 def lcia_impact_method():
-    # Using H (hierachly) due to it has a 100 year span
-    # Obtaining the midpoint categpries and ignoring land transformation (Land use still included)
     dm.remove_bio_co2_recipe()
     midpoint_method = [m for m in bw.methods if 'ReCiPe 2016 v1.03, midpoint (H) - no biogenic' in str(m) and 'no LT' not in str(m)] # Midpoint
 
@@ -127,9 +125,6 @@ def recipe_dataframe_split(df):
 # Function to create two dataframes, one where each subprocess' in the process are summed 
 # and the second is scaling the totals in each column to the max value
 def dataframe_element_scaling(df):
-    # Creating a deep copy of the dataframe to avoid changing the original dataframe
-    # df_tot = copy.deepcopy(df)
-
     df_tot = pd.DataFrame(0, index=df.index, columns=df.columns, dtype=object)
 
     for col in df.columns:
@@ -137,7 +132,6 @@ def dataframe_element_scaling(df):
             # print(f"{dct[col]} type is {type(dct[col])}")
             for val in dct[col].values():
                 df_tot.at[idx, col] += val
-
 
     df_scaled = copy.deepcopy(df_tot)
 
@@ -149,59 +143,8 @@ def dataframe_element_scaling(df):
 
     return df_tot, df_scaled
 
-# Obtaining the uniquie elements to determine the amount of colors needed for the plots
-def unique_elements_list(database_name):
-    category_mapping = rfig.category_organization(database_name)
-    unique_elements = []
-    for item in category_mapping.values():
-        for ilst in item:
-            unique_elements.append(ilst)
-
-    return unique_elements
-
-def rearrange_dataframe_index(df, database):
-    # Initialize a dictionary to store the new index positions
-    idx_dct = {}
-    idx_lst = list(df.index)
-    
-    # Check if the database is 'case1'
-    if len(idx_lst) == 3:
-        print(idx_lst)
-        # Define the new order of the index
-        plc_lst = [2,   # new placement of the first index
-                   0,   # new placement of the second index
-                   1    # new placement of the third index
-                   ]
-
-        # Assign the new order to the index dictionary
-        for plc, idx in enumerate(df.index):
-            idx_dct[idx] = plc_lst[plc]
-            
-        # Create the new index list
-        idx_lst = [''] * len(idx_dct)
-        for key, item in idx_dct.items():
-            idx_lst[item] = key
-
-        # Get the impact categories from the dataframe columns
-        impact_category = df.columns
-        
-        # Create a new dataframe with the rearranged index
-        df_rearranged = pd.DataFrame(0, index=idx_lst, columns=impact_category, dtype=object)
-
-        # Rearrange the dataframe according to the new index
-        for icol, col in enumerate(impact_category):
-            for row_counter, idx in enumerate(df_rearranged.index):
-                rearranged_val = df.at[idx, col] # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.at.html#pandas.DataFrame.at
-                df_rearranged.iloc[row_counter, icol] = rearranged_val
-
-        return df_rearranged
-    else:
-        # If the database is not 'case1', return the original dataframe
-        return df
 
 def dataframe_results_handling(df, database_name, plot_x_axis_all, lcia_meth):
-    # Rearrange the dataframe index based on the database name
-    # df_rearranged = rearrange_dataframe_index(df, database_name)
 
     # Check if the LCIA method is ReCiPe
     if 'recipe' in lcia_meth.lower():

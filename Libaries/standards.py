@@ -1,5 +1,4 @@
 import os
-import json
 import ast
 import pandas as pd
 import numpy as np
@@ -19,7 +18,6 @@ def results_folder(path, name, db=None):
         # Check if the directory already exists
         if os.path.exists(save_dir):
             pass
-            # print(f'{temp} already exist')
         else:
             # Create the directory if it doesn't exist
             os.makedirs(save_dir, exist_ok=True)
@@ -36,7 +34,6 @@ def join_path(path1, path2):
 def data_paths(path):
     # Path to where the code is stored
     path_github = join_path(path, r'RA\penicilin')
-    # Specifying the LCIA method
 
     ecoinevnt_paths = {'ev391apos' : join_path(path, r"4. semester\EcoInvent\ecoinvent 3.9.1_apos_ecoSpold02\datasets"),
                     'ev391consq' :   join_path(path, r"4. semester\EcoInvent\ecoinvent 3.9.1_consequential_ecoSpold02\datasets"),
@@ -49,25 +46,18 @@ def data_paths(path):
 
 # saving the LCIA results to excel
 def save_LCIA_results(df, file_name, sheet_name):
-    # Convert each cell to a JSON string for all columns
-    # df_save = df.map(lambda x: json.dumps(x) if isinstance(x, list) else x)
-
-    # Save to Excel
     with pd.ExcelWriter(file_name) as writer:
         df.to_excel(writer, sheet_name=sheet_name, index=True, header=True)
 
-    # print(f'DataFrame saved successfully to {file_name}')
-
-
 # Function to import the LCIA results from excel
 def import_LCIA_results(file_name, impact_category):
-    
     if type(impact_category) == tuple:
         impact_category = [impact_category]
     
     # Reading from Excel
     df = pd.read_excel(io=file_name, index_col=0)
 
+    # Convert the cell values to original data type
     for col in df.columns:
         for idx, row in df.iterrows():
             cell_value = row[col]

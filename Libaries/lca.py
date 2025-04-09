@@ -87,8 +87,6 @@ class LCA():
 
     # Function to obtain the LCIA category to calculate the LCIA results
     def lcia_impact_method(self):
-        # Using H (hierachly) due to it has a 100 year span
-        # Obtaining the midpoint categpries and ignoring land transformation (Land use still included)
         
         dm.remove_bio_co2_recipe()
         midpoint_method = [m for m in bw.methods if 'ReCiPe 2016 v1.03, midpoint (H) - no biogenic' in str(m) and 'no LT' not in str(m)] # Midpoint
@@ -190,47 +188,6 @@ class LCA():
 
         return df_tot, df_scaled
 
-
-
-    def rearrange_dataframe_index(df):
-        # Initialize a dictionary to store the new index positions
-        idx_dct = {}
-        idx_lst = list(df.index)
-        
-        if len(idx_lst) == 3:
-            print(idx_lst)
-            # Define the new order of the index
-            plc_lst = [2,   # new placement of the first index
-                    0,   # new placement of the second index
-                    1]   # new placement of the third index
-                    
-
-            # Assign the new order to the index dictionary
-            for plc, idx in enumerate(df.index):
-                idx_dct[idx] = plc_lst[plc]
-                
-            # Create the new index list
-            idx_lst = [''] * len(idx_dct)
-            for key, item in idx_dct.items():
-                idx_lst[item] = key
-
-            # Get the impact categories from the dataframe columns
-            impact_category = df.columns
-            
-            # Create a new dataframe with the rearranged index
-            df_rearranged = pd.DataFrame(0, index=idx_lst, columns=impact_category, dtype=object)
-
-            # Rearrange the dataframe according to the new index
-            for icol, col in enumerate(impact_category):
-                for row_counter, idx in enumerate(df_rearranged.index):
-                    rearranged_val = df.at[idx, col] # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.at.html#pandas.DataFrame.at
-                    df_rearranged.iloc[row_counter, icol] = rearranged_val
-
-            return df_rearranged
-        else:
-            # If the database is not 'case1', return the original dataframe
-            return df
-
     def x_label_text(self):
         impact_categories = self.lcia_impact_method()
          # Extract the endpoint categories from the plot x-axis
@@ -252,16 +209,15 @@ class LCA():
 
     def dataframe_results_handling(self, df):
         # Rearrange the dataframe index based on the database name
-        df_rearranged = self.rearrange_dataframe_index(df)
 
         # Check if the LCIA method is ReCiPe
         if 'recipe' in self.lcia_meth.lower():
             # Split the dataframe into midpoint and endpoint results
-            self.df_midpoint, self.df_endpoint = self.recipe_dataframe_split(df_rearranged)
+            self.df_midpoint, self.df_endpoint = self.recipe_dataframe_split(df)
 
             # Return the processed dataframes and plot x-axis labels
             return [self.df_midpoint, self.df_endpoint]
 
         else:
             # Return the processed dataframe
-            return df_rearranged
+            return df

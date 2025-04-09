@@ -23,6 +23,7 @@ def perform_LCIA(unique_process_index, func_unit, impact_categories, file_name_u
     Returns:
     pd.DataFrame: DataFrame containing LCIA results.
     """
+
     # Ensure impact categories is a list
     if isinstance(impact_categories, tuple):
         impact_categories = list(impact_categories)
@@ -141,6 +142,7 @@ def lcia_dataframe_handling(file_name, sheet_name, impact_categories, file_name_
     # Import LCIA results if user chooses 'n'
     if 'n' in user_input.lower():
         df = import_LCIA_results(file_name, impact_categories)
+        
     else:
         # Initialize DataFrame for results
         df = pd.DataFrame(0, index=flows, columns=impact_categories, dtype=object)
