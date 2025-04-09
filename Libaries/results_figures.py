@@ -190,7 +190,11 @@ def create_results_figures(path, matching_database, database, lcia_method, bw_pr
         plot_x_axis_all[i] = impact_categories[i][2]
     
      # Extract the endpoint categories from the plot x-axis
-    plot_x_axis_end = plot_x_axis_all[-3:]
+    plot_x_axis_end = [
+            "Ecosystem\n damage",
+            "Human health\n damage",
+            "Natural resources\n damage"
+        ]
     
     # Extract the midpoint categories from the plot x-axis
     ic_mid = plot_x_axis_all[:-3]
