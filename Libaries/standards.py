@@ -1,5 +1,6 @@
 import os
 import json
+import ast
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -27,7 +28,6 @@ def results_folder(path, name, db=None):
     except (OSError, FileExistsError) as e:
         # Handle potential UnboundLocalError
         print('Error occurred')
-    print(save_dir)
     return save_dir
 
 def join_path(path1, path2):
@@ -50,13 +50,13 @@ def data_paths(path):
 # saving the LCIA results to excel
 def save_LCIA_results(df, file_name, sheet_name):
     # Convert each cell to a JSON string for all columns
-    df_save = df.map(lambda x: json.dumps(x) if isinstance(x, list) else x)
+    # df_save = df.map(lambda x: json.dumps(x) if isinstance(x, list) else x)
 
     # Save to Excel
     with pd.ExcelWriter(file_name) as writer:
-        df_save.to_excel(writer, sheet_name=sheet_name, index=True, header=True)
+        df.to_excel(writer, sheet_name=sheet_name, index=True, header=True)
 
-    print(f'DataFrame saved successfully to {file_name}')
+    # print(f'DataFrame saved successfully to {file_name}')
 
 
 # Function to import the LCIA results from excel
@@ -68,8 +68,13 @@ def import_LCIA_results(file_name, impact_category):
     # Reading from Excel
     df = pd.read_excel(io=file_name, index_col=0)
 
-    # Convert JSON strings back to lists for all columns
-    df = df.map(lambda x: json.loads(x) if isinstance(x, str) and x.startswith('[') else x)
+    for col in df.columns:
+        for idx, row in df.iterrows():
+            cell_value = row[col]
+            try:
+                row[col] = ast.literal_eval(cell_value)
+            except ValueError:
+                row[col] = float(cell_value)
 
     # Updating column names
     df.columns = impact_category
@@ -77,6 +82,6 @@ def import_LCIA_results(file_name, impact_category):
     # Return the imported dataframe
     return df
 
-def color_range():
-    cmap = plt.get_cmap('Accent')
-    return [cmap(i) for i in np.linspace(0, 1, 9)]
+def color_range(colorname="Accent", color_quantity=9):
+    cmap = plt.get_cmap(colorname)
+    return [cmap(i) for i in np.linspace(0, 1, color_quantity)]

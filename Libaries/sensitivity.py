@@ -1,434 +1,316 @@
-# Import libaries
-import pandas as pd
-from copy import deepcopy as dc
-import os
-from openpyxl import load_workbook
 import bw2data as bd
+import bw2calc as bc
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import stats
 
-
-# Importing self-made libaries
-from standards import *
+import standards as s
 import life_cycle_assessment as lc
-import sensitivity_case1 as c1
-import sensitivity_case2 as c2
-import results_figures as rfig
+from lca import LCA
 
+def treatment_quantity(system_path, db):
+    # Use a context manager to open the Excel file
+    with pd.ExcelFile(system_path) as excel_file:
+        # Get the sheet names
+        sheet_names = excel_file.sheet_names
 
-def get_all_flows(path):
-    # Set the current Brightway2 project
-    bd.projects.set_current("Single Use vs Multi Use")
-    
-    # Define the types of databases
-    db_type = ['apos', 'consq', 'cut_off']
-
-    # Initialize dictionaries to store flows, save directories, database names, and file names
-    flows = {}
-    save_dir = {}
-    database_name_lst = []
-    file_name = {}
-    db_type_dct = {}
-
-    # Loop through case numbers and database types
-    for nr in range(1, 3):
-        for tp in db_type:
-            # Construct the database name
-            database_name = f'case{nr}' + '_' + tp
-            database_name_lst.append(database_name)
-            db = bd.Database(database_name)
-            
-            # Initialize a list to store flow names
-            flow = []
-            
-            # Check if the database is case1
-            if 'case1' in str(db):
-                for act in db:
-                    temp = act['name']
-                    # Add specific flows based on conditions
-                    if ('H2' in temp or 'H4' in temp) and ('SU' in temp or 'REC' in temp) and temp not in flow:
-                        flow.append(temp)
-                    elif 'alubox' in temp and '+' in temp and 'eol' not in temp.lower():
-                        flow.append(temp)
-                flow.sort()
-            # Check if the database is case2
-            elif 'case2' in str(db):
-                for act in db:
-                    temp = act['name']
-                    if temp == 'SUD' or temp == 'MUD':
-                        flow.append(temp)
-                flow.sort()
-                flow.reverse()
-            
-            # Store the flows in the dictionary
-            flows[database_name] = flow
-            
-            # Create the results folder and store the directory path
-            dir_temp = results_folder(join_path(path, 'results'), f"case{nr}")
-            save_dir[database_name] = dir_temp
-            
-            # Store the file name for the results
-            file_name[database_name] = join_path(dir_temp,rf'data_case{nr}_{tp}_recipe.xlsx')
-            
-            # Store the database type in the dictionary
-            db_type_dct[database_name] = tp
-    
-    # Return the collected data
-    return flows, database_name_lst, db_type_dct, save_dir, file_name
-
-def break_even_initialization(path, lcia_method):
-    # Reloading the self-made libraries to ensure they are up to date
-    flows, database_name, db_type, save_dir, file_name = get_all_flows(path)
-    
-    # Get the impact category based on the LCIA method
-    impact_category = lc.lcia_impact_method(lcia_method)
-    
-    # Check if flows is a list
-    if isinstance(flows, list):
-        # Import the results data frame
-        df = lc.import_LCIA_results(file_name, flows, impact_category)
-        
-        # Rearrange the data frame index
-        df_rearranged = lc.rearrange_dataframe_index(df, database=database_name)
-        
-        # Split the data frame if the LCIA method is 'recipe'
-        if 'recipe' in lcia_method:
-            df_res, df_endpoint = lc.recipe_dataframe_split(df_rearranged)
-        else:
-            df_res = df_rearranged
-        
-        # Separate the GWP from the rest
-        df_col = [df_res.columns[1]]
-        df_GWP = df_res[df_col]
-        
-        # Store the variables in a list
-        variables = [database_name, df_GWP, db_type, save_dir, flows, impact_category]
-
-    else:
-        # Initialize an empty dictionary for variables
-        variables = {}
-        
-        # Loop through the flows dictionary
-        for db, key in enumerate(flows.keys()):
-            # Import the results data frame
-            df = lc.import_LCIA_results(file_name[key], impact_category)
-            
-            # Rearrange the data frame index
-            df_rearranged = lc.rearrange_dataframe_index(df, database_name[db])
-            
-            # Split the data frame if the LCIA method is 'recipe'
-            if 'recipe' in lcia_method:
-                df_res, df_endpoint = lc.recipe_dataframe_split(df_rearranged)
-            else:
-                df_res = df_rearranged
-            
-            # Separate the GWP potential from the rest
-            df_col = [df_res.columns[1]]
-            df_GWP = df_res[df_col]
-            
-            # Store the variables in the dictionary
-            variables[key] = [database_name[db], df_GWP, db_type[key], save_dir[key], flows[key], impact_category]
-    
-    # Return the variables
-    return variables
-
-def column_sum_dataframe(df_sensitivity_v):
-    """
-    Sums the values of each column in the given DataFrame, excluding the 'total' row.
-
-    Parameters:
-    df_sensitivity_v (pd.DataFrame): DataFrame containing sensitivity values.
-
-    Returns:
-    dict: Dictionary with column names as keys and their respective sums as values.
-    """
-    tot_dct = {}
-    for col in df_sensitivity_v.columns:
-        tot_dct[col] = 0
-        for idx, row in df_sensitivity_v.iterrows():
-            if idx != 'total':
-                tot_dct[col] += row[col]
-    return tot_dct
-
-def sensitivity_table_results(totals_df, idx_sens, col_to_df, df_sensitivity_v):
-    """
-    Calculates the sensitivity table results based on the given dataframes.
-
-    Parameters:
-    totals_df (pd.DataFrame): DataFrame containing total values.
-    idx_sens (list): List of sensitivity indices.
-    col_to_df (list): List of columns for the sensitivity DataFrame.
-    df_sensitivity_v (pd.DataFrame): DataFrame containing sensitivity values.
-
-    Returns:
-    pd.DataFrame: DataFrame with sensitivity percentage results.
-    """
-    tot_lst = {}
-    # Create a dictionary with total values from totals_df
-    for tidx in totals_df.index:
-        tot_lst[tidx] = totals_df.at[tidx, 'Value']
-
-    # Initialize a DataFrame to store sensitivity percentages
-    df_sensitivity_p = pd.DataFrame(0, index=idx_sens, columns=col_to_df, dtype=object)
-
-    # Calculate the sum of each column in df_sensitivity_v
-    dct = column_sum_dataframe(df_sensitivity_v)
-
-    # Iterate over each column and row in df_sensitivity_v
-    for col in df_sensitivity_v.columns:
-        for idx, row in df_sensitivity_v.iterrows():
-            if 'lower' in col:
-                tidx = col.replace(" - lower%", "")
-                tot = tot_lst[tidx]
-            else:
-                tidx = col.replace(" - upper%", "")
-                tot = tot_lst[tidx]
-
-            if row[col] != 0 and 'total' not in idx:
-                val = row[col]
-                if 'lower' in col:
-                    sens = tot - val
-                else:
-                    sens = tot + val
-                df_sensitivity_p.at[idx, col] = (val - tot) / tot * 100
-            elif 'total' in idx:
-                if 'lower' in col:
-                    tidx = col.replace(" - lower%", "")
-                    tot = tot_lst[tidx]
-                    df_sensitivity_p.at[idx, col] = ((tot - dct[col]) - tot) / tot * 100
-                else:
-                    tidx = col.replace(" - upper%", "")
-                    tot = tot_lst[tidx]
-                    df_sensitivity_p.at[idx, col] = ((tot + dct[col]) - tot) / tot * 100
-
-            # Format the sensitivity percentage values
-            if round(df_sensitivity_p.at[idx, col], 2) != 0:
-                df_sensitivity_p.at[idx, col] = f"{df_sensitivity_p.at[idx, col]:.2f}%"
-            else:
-                df_sensitivity_p.at[idx, col] = "-"
-
-    return df_sensitivity_p
-
-def autoclave_gwp_impact_case1(variables, path):
-    """
-    Calculates the GWP impact of the autoclave for case1 based on the given variables and path.
-
-    Parameters:
-    variables (tuple): A tuple containing database name, _, db type, _, flows, and impact category.
-    path (str): The path to the results folder.
-
-    Returns:
-    float: The GWP impact of the autoclave.
-    """
-    database_name, _, db_type, _, flows, impact_category = variables
-    db = bd.Database(database_name)
-    unique_process_index = []
-
-    # Iterate through the database to find unique process indices for the given flows
+    df_treatment_quantity = pd.read_excel(io=system_path, sheet_name=sheet_names[1])
+    scaling_dct = {}
     for act in db:
-        for f in flows:
+        if "vial for penicillin" in act['name'] or "tablet" in act['name']:
             for exc in act.exchanges():
-                if act['name'] == f and str(exc.input) not in unique_process_index and exc['type'] != 'production':
-                    unique_process_index.append(str(exc.input))
+                if "penicillium " in  exc.input["name"]:
+                    for pen_type in df_treatment_quantity.columns:
+                        for _, row in df_treatment_quantity.iterrows():
+                            if pen_type in exc["name"]:
+                                scaling_dct[exc["name"]] = exc["amount"] * row[pen_type]
 
-    unique_process_index.sort()
-    save_dir_case1 = results_folder(join_path(path, "results"), 'case1')
-    results_path = join_path(save_dir_case1, f"data_uniquie_case1_{db_type}_recipe.xlsx")
-    df_unique = lc.import_LCIA_results(results_path, impact_category)
-    autoclave_gwp = None
+    return scaling_dct
 
-    # Try to find the autoclave GWP impact for different locations
-    for location in ["DK", "GLO", "RER"]:
-        try:
-            autoclave_gwp = df_unique.at[f"'autoclave' (unit, {location}, None)", impact_category[1]]
-            if autoclave_gwp is not None:
-                break
-        except KeyError:
-            continue
+def obtain_activities(system_path, db):
+    pencillium_fu = {}
+    proc_check = {}
 
-    if autoclave_gwp is None:
-        raise KeyError("Autoclave GWP impact not found for DK, GLO, or RER.")
+    scaling_dct = treatment_quantity(system_path, db)
 
-    return autoclave_gwp
+    for act in db:
+        # if "vial for penicillin" in act['name'] or "tablet" in act['name']:
+        if "penicillium" in act['name']:
+            pencillium_fu[act["name"]] = []
+            proc_check[act["name"]] = []
+            for exc in act.exchanges():
+                if "techno" in exc["type"]:
+                    pencillium_fu[act["name"]].append({exc.input : (exc["amount"] * scaling_dct[act["name"]])*1000})
+                    proc_check[act["name"]].append(exc.input["name"])
 
-def results_dataframe(df_sensitivity, df_dct, df_be):
-    """
-    Generates a results DataFrame with sensitivity percentages.
+    return pencillium_fu, proc_check
 
-    Parameters:
-    df_sensitivity (pd.DataFrame): DataFrame containing initial sensitivity values.
-    df_dct (dict): Dictionary containing sensitivity data for different cases.
-    df_be (pd.DataFrame): DataFrame containing break-even data.
+def folder():
+    sens_folder = r"C:\Users\ruw\Desktop\RA\penicilin\results"
+    save_dir = s.results_folder(sens_folder, "sensitivity")
+    return save_dir
 
-    Returns:
-    pd.DataFrame: DataFrame with sensitivity percentage results.
-    """
-    df_perc = dc(df_sensitivity)
-    
-    # Iterate over each sensitivity case
-    for sc, case in df_dct.items():
-        for desc, data in case.items():
-            if desc != 'total':
-                idx = [i for i in data.index][0]
-                lst1 = data.loc[idx].to_list()
-                lst2 = df_be.loc[idx].to_list()
-                tot_sens = 0
-                tot = 0
-                
-                # Calculate the total sensitivity and total values
-                for k, n in enumerate(lst1):
-                    tot_sens += n
-                    tot += lst2[k]
-                
-                # Calculate the percentage change
-                p = (tot_sens - tot) / tot
-                df_perc.at[desc, sc] = p
-
-    results_df = dc(df_perc)
-    
-    # Update the results DataFrame with total values and format
-    for col in results_df.columns:
-        for idx, row in results_df.iterrows():
-            if 'total' not in idx:
-                results_df.at['total', col] += row[col]
-            if row[col] == 0:
-                row[col] = '-'
-
-    return results_df
-
-def calculate_sensitivity_values(variables, autoclave_gwp, case):
-    """
-    Calculates the sensitivity values based on the given variables and autoclave GWP.
-
-    Parameters:
-    variables (tuple): A tuple containing database name, df_GWP, db type, save directory, impact category, and flows.
-    autoclave_gwp (float): The GWP impact of the autoclave.
-
-    Returns:
-    pd.DataFrame: DataFrame with sensitivity percentage results.
-    """
-    database_name, df_GWP, db_type, save_dir, impact_category, flows = variables
-
-    # Define flow legend based on the database name
-    if 'case1' in database_name:
-        flow_legend = [
-            'H2I',
-            'H2R',
-            'ASC',
-            'ASW',
-            'H4I',
-            'H4R',
-            'ALC',
-            'ALW'
-        ]
+def sensitivity_paths(pen_type, save_dir):
+    if "V" in pen_type:
+        sens_file_path = s.join_path(save_dir, r"penincillium_V.xlsx")
     else:
-        flow_legend = ['SUD', 'MUD']
-
-    # Create the dataframe for min and max values
-    columns = lc.unique_elements_list(database_name)
-    df_stack_updated, totals_df = rfig.process_categorizing(df_GWP, case, flow_legend, columns)
-
-    # Organize the break-even data
-    df_be = rfig.break_even_orginization(df_stack_updated, database_name)
-
-    # Find the minimum and maximum value of the sensitivity analysis
-    if 'case1' in database_name:
-        df, val_dct, idx_sens, col_to_df = c1.case1_initilazation(df_be)
-        df_dct = c1.uncertainty_case1(df, val_dct, df_be, totals_df, idx_sens, col_to_df)
-        return results_dataframe(df, df_dct, df_be)
-    elif 'case2' in database_name:
-        df, val_dct, idx_sens, col_to_df = c2.case2_initilazation(df_be, db_type, autoclave_gwp)
-        df_dct = c2.uncertainty_case2(val_dct, df_be, df)
-        return results_dataframe(df, df_dct, df_be)
-
-def save_sensitivity_to_excel(variables, case, autoclave_gwp_dct):
-    """
-    Saves the sensitivity analysis results to an Excel file.
-
-    Parameters:
-    variables (tuple): A tuple containing database name, df_GWP, db type, save directory, impact category, and flows.
-    path (str): The path to the results folder.
-    autoclave_gwp_dct (dict): Dictionary containing autoclave GWP impacts.
-
-    Returns:
-    pd.DataFrame: DataFrame with sensitivity percentage results.
-    """
-    identifier = variables[0]
-    save_dir = variables[3]
-    df_sens = calculate_sensitivity_values(variables, autoclave_gwp_dct, case)
-
-    results_path = join_path(save_dir, f"sensitivity_{identifier}.xlsx")
+        sens_file_path = s.join_path(save_dir, r"penincillium_G.xlsx")
     
-    if os.path.exists(results_path):
-        try:
-            # Try to load the existing workbook
-            book = load_workbook(results_path)
-            with pd.ExcelWriter(results_path, engine='openpyxl', mode='a') as writer:
-                writer.book = book
-                df_sens.to_excel(writer, sheet_name=identifier, index=True)
-        except Exception as e:
-            print(f"Error loading existing workbook: {e}")
-            # If there's an error loading the workbook, create a new one
-            with pd.ExcelWriter(results_path, engine='openpyxl') as writer:
-                df_sens.to_excel(writer, sheet_name=identifier, index=True)
-    else:
-        # If the file does not exist, create a new one
-        with pd.ExcelWriter(results_path, engine='openpyxl') as writer:
-            df_sens.to_excel(writer, sheet_name=identifier, index=True)
-    
-    print(f"Saved successfully to {results_path} in sheet {identifier}")
+    return sens_file_path
 
-    return df_sens
 
-def obtain_case1_autoclave_gwp(variables, path):
-    """
-    Obtains the GWP impact of the autoclave for case1 based on the given variables and path.
+def calculate_sensitivity_results(pencillium_fu, proc_check, calc=False):
+    # Generate file paths for sensitivity results based on penicillin type
+    method_GWP = lc.lcia_impact_method()[1]
+    save_dir = folder()
+    file_path = {pen_type: sensitivity_paths(pen_type, save_dir) for pen_type in pencillium_fu.keys()}
+    pen_df = {}
 
-    Parameters:
-    variables (dict): Dictionary containing variable tuples for different cases.
-    path (str): The path to the results folder.
+    if calc:
+        # Perform LCIA calculations if calc is True
+        for pen_type, pen_fu in pencillium_fu.items():
+            print(f"Performing LCIA for {pen_type}")
 
-    Returns:
-    dict: Dictionary with case identifiers as keys and their respective autoclave GWP impacts as values.
-    """
-    autoclave_gwp_dct = {}
-    for key, item in variables.items():
-        try:
-            if '1' in key:
-                # Calculate the autoclave GWP impact for case1 and store it in the dictionary
-                autoclave_gwp_dct[f'case2_{item[2]}'] = autoclave_gwp_impact_case1(item, path)
-                autoclave_gwp_dct[item[0]] = ''
-        except KeyError as e:
-            print(e)
+            # Initialize a DataFrame to store sensitivity results
+            df_sens = pd.DataFrame(0, index=proc_check[pen_type], columns=[method_GWP[1]], dtype=object)
+
+            # Set up the calculation environment for sensitivity analysis
+            bd.calculation_setups['Sensitivity'] = {'inv': pen_fu, 'ia': [method_GWP]}
+
+            # Perform the MultiLCA calculation
+            sens_res = bc.MultiLCA('Sensitivity')
+            sens_results_array = sens_res.results
             
-    return autoclave_gwp_dct
+            # Store results in the DataFrame
+            for idx, res in enumerate(sens_results_array):
+                df_sens.iat[idx, 0] = res
 
-def iterative_save_sensitivity_results_to_excel(path, case):
-    """
-    Iteratively saves the sensitivity analysis results to an Excel file for each case.
+            # Save the results to the dictionary and export to an Excel file
+            pen_df[pen_type] = df_sens
+            s.save_LCIA_results(df_sens, file_path[pen_type], "results")
+    else:
+        # Import pre-calculated LCIA results if calc is False
+        for pen_type, excel_path in file_path.items():
+            temp = s.import_LCIA_results(excel_path, method_GWP)
+            temp.columns = [method_GWP[1]]  # Rename columns for consistency
+            pen_df[pen_type] = temp
+    
+    return pen_df
 
-    Parameters:
-    variables (dict): Dictionary containing variable tuples for different cases.
-    path (str): The path to the results folder.
+def compacting_penicillium_dataframes(pen_df):
+    pen_compact_idx = {
+    "Fermentation"          : ["pharmamedia", "phenyl", "phenoxy", "glucose", "oxygen", "tap water", "sulfate"],
+    "Extracion"             : ["butyl", "sulfuric"],
+    "Purification"          : ["sodium", "acetone"],
+    "Energy"                : ["heat", "electricity"],
+    "Waste"                 : ["incineration", "penicillium"]
+    }
 
-    Returns:
-    tuple: A tuple containing two dictionaries:
-        - df_dct: Dictionary with case identifiers as keys and their respective sensitivity DataFrames as values.
-        - df_dct_be: Dictionary with case identifiers as keys and their respective break-even DataFrames as values.
-    """
-    variables = break_even_initialization(path, 'recipe')
-    # Obtain the autoclave GWP impacts for case1
-    autoclave_gwp_dct = obtain_case1_autoclave_gwp(variables, path)
-    df_dct = {}
+    method_GWP = lc.lcia_impact_method()[1]
 
-    # Iterate over each case in the variables dictionary
-    for key, item in variables.items():
-        if '1' in key:
-            # Save sensitivity results for case1
-            df_sens = save_sensitivity_to_excel(item, case, autoclave_gwp_dct[key])
-        elif '2' in key:
-            # Save sensitivity results for case2
-            df_sens = save_sensitivity_to_excel(item, case, autoclave_gwp_dct[key])
+    pen_compact_df = {}
+    tot_df = {}
+    for pen_type, df in pen_df.items():
+        df_temp = pd.DataFrame(0, index=list(pen_compact_idx.keys()), columns=[method_GWP[1]], dtype=object)
+        tot = 0
+        idx_lst = list(df.index)
+        for idx, row in df.iterrows():
+            for comp_idx, comp_lst in pen_compact_idx.items():
+                    for i in comp_lst:
+                        if i.lower() in idx.lower():
+                            df_temp.at[comp_idx, method_GWP[1]] += row[method_GWP[1]]
+                            tot += row[method_GWP[1]]
+                            try:
+                                idx_lst.remove(idx)
+                            except ValueError as e:
+                                print(f"Value error for {idx} : {pen_type}")
+
         
-        # Store the sensitivity DataFrame in the dictionary
-        df_dct[key] = df_sens
+        pen_compact_df[pen_type] = df_temp
+        tot_df[pen_type] = tot
 
-    return df_dct
+    return pen_compact_df, tot_df, pen_compact_idx
+
+def organize_sensitivity_scenarios():
+    col_sens = ["-25%", "-10%", "0%", "10%", "25%"]
+    col_sens.reverse()
+    sens_lst = [0.75, 0.9, 1, 1.1, 1.25]
+    sens_lst.reverse()
+    
+    return col_sens, sens_lst
+
+def calc_penicillium_sensitivity(pen_compact_df, pen_compact_idx):
+    pen_sens = {}
+
+    col_sens, sens_lst = organize_sensitivity_scenarios()
+
+    for pen_type, df in pen_compact_df.items():
+        df_sens_extr = pd.DataFrame(0, index=list(pen_compact_idx.keys()), columns=col_sens, dtype=object)
+        for col in range(len(col_sens)):
+            for idx in range(len(df_sens_extr.index)):
+                df_sens_extr.iat[idx, col] = df.iat[idx, 0] * sens_lst[col]
+        pen_sens[pen_type] = df_sens_extr
+
+    return pen_sens
+
+def calc_senstivity_values(pen_compact_df, pen_compact_idx, tot_df):
+    pen_stat_tot = {}
+    col_sens, _ = organize_sensitivity_scenarios()
+    pen_sens = calc_penicillium_sensitivity(pen_compact_df, pen_compact_idx)
+
+    for pen_type, df in pen_sens.items():
+        pen_stat_tot[pen_type] = None
+        sens_idx = list(pen_compact_idx.keys())
+        df_sens_res = pd.DataFrame(0, index=sens_idx, columns=col_sens, dtype=object)
+        
+        for idx in range(len(df.index)):
+            for col in range(len(col_sens)):
+                if col != 2: # Assigning the new total impact for the x% change column
+                    new_impact_val = df.iat[idx, col] - df.iat[idx, 2]
+                    new_total_impact_val =  tot_df[pen_type] + new_impact_val
+                    df_sens_res.iat[idx, col] = new_total_impact_val
+
+                else: # Assigning the orgianl total impact for the 0% change column
+                    df_sens_res.iat[idx, col] = tot_df[pen_type]
+
+
+        pen_stat_tot[pen_type] = (df_sens_res)
+        
+    stat_arr_dct = {}
+    for pen, df in pen_stat_tot.items():
+        arr_plc = 0
+        arr_temp = np.zeros(df.size)
+        for col in df.columns:
+            for _, row in df.iterrows():
+                arr_temp[arr_plc] = row[col]
+                arr_plc += 1
+        stat_arr_dct[pen] = arr_temp
+    
+    return stat_arr_dct, pen_stat_tot
+
+def calc_mean_std(stat_arr_dct):
+    data_proccessing_idx = ['Mean', 'Standard Deviation']
+    data_proccessing_dct = {} 
+
+    for act, arr in stat_arr_dct.items():
+        data_proccessing_dct[act] = {}
+        for dp in data_proccessing_idx:
+            if 'mean' in dp.lower():
+                data_proccessing_dct[act].update({dp : np.mean(arr)})
+            elif 'standard' in dp.lower():
+                data_proccessing_dct[act].update({dp : np.std(arr)})
+
+    return data_proccessing_dct
+
+def title_text(txt):
+    txt = txt.replace("manufacturing of raw ","")
+    txt = txt + " prod."
+    return txt
+
+def sort_dict_keys(dct):
+    keys_sorted = list(dct.keys())
+    keys_sorted.sort()
+
+    dct_sorted = {}
+    
+    for key in keys_sorted:
+        dct_sorted[key] = dct[key]
+
+    return dct_sorted
+
+def figure_font_sizes():
+    plt.rcParams.update({
+                        'font.size': 12,      # General font size
+                        'axes.titlesize': 14, # Title font size
+                        'axes.labelsize': 12, # Axis labels font size
+                        'legend.fontsize': 10 # Legend font size
+                        }) 
+
+def sensitivity_legend(col_sens, idx, leg):
+    if "-" in col_sens[idx]:
+        leg.append(col_sens[idx].replace("-", "") + " decrease")
+    elif "10" in col_sens[idx] or "25" in col_sens[idx]:
+        leg.append(col_sens[idx] + " increase")
+    else:
+        leg.append("Baseline")
+
+def sensitivity_plot(pen_stat_tot):
+    figure_font_sizes()
+    colors = s.color_range(colorname="Greys", color_quantity=5)
+    colors.reverse()
+
+    output_file_sens = r"C:\Users\ruw\Desktop\RA\penicilin\results\figures\senstivity.png"
+
+    col_sens, _ = organize_sensitivity_scenarios()
+    pen_stat_tot_sorted = sort_dict_keys(pen_stat_tot)
+
+    _, axes = plt.subplots(1, len(pen_stat_tot_sorted), figsize=(15, 6))
+
+    for fplc, (pen_type, df) in enumerate(pen_stat_tot_sorted.items()):
+        ax = axes[fplc]
+        leg = []
+        for idx, (_, row) in enumerate(df.iterrows()):
+            for c, val in enumerate(row):
+                ax.scatter(idx, val, color=colors[c], edgecolor="k", s=75)
+            sensitivity_legend(col_sens, idx, leg)
+                
+        x = np.arange(len(row.to_numpy()))
+        ax.set_xticks(x)
+        ax.set_xticklabels(df.index, rotation=0)
+        ax.set_ylabel('g CO$_2$e')
+        ax.set_title(f'Sensitivity analysis for {pen_type}')
+
+
+    ax.legend(
+        leg,
+        loc='upper left',
+        bbox_to_anchor=(0.99, 1.01),
+        frameon=False
+    )
+
+    plt.tight_layout()
+    plt.savefig(output_file_sens, dpi=300, format='png', bbox_inches='tight')
+    plt.show()
+
+
+def monte_carlo_plot(stat_arr_dct, base=10, power=4):
+    figure_font_sizes()
+    output_file_MC = r"C:\Users\ruw\Desktop\RA\penicilin\results\figures\monte_carlo.png"
+    data_proccessing_dct = calc_mean_std(stat_arr_dct)
+    data_proccessing_dct_sorted = sort_dict_keys(data_proccessing_dct)
+
+    num_samples = pow(base, power)  # Number of samples you want to generate
+    plt.figure(figsize=(10, 5))
+    hatch_style = ["oo", "////"]
+
+    arr_lst = []
+    for c, (pen, dct) in enumerate(data_proccessing_dct_sorted.items()):
+        mean = dct["Mean"]
+        std_dev = dct["Standard Deviation"]
+
+        samples = np.random.normal(loc=mean, scale=std_dev, size=num_samples)
+        arr_lst.append(samples)
+        # Plot histogram
+        plt.hist(samples, bins=40, color="w", hatch=hatch_style[c], edgecolor="k", alpha=0.7, label=title_text(pen))
+
+    plt.xlabel('g CO$_2$e')
+    plt.ylabel('Frequency')
+    plt.title('Monte Carlo Simulation Results for the manufacturing')
+    plt.legend(loc='upper right')
+    plt.tight_layout()
+    plt.savefig(output_file_MC, dpi=300, format='png', bbox_inches='tight')
+    plt.show()
+
+    data1 = arr_lst[0]
+    data2 = arr_lst[1]
+    t_stat, p_value = stats.ttest_ind(data1, data2)
+    print(f"T-value: {t_stat}, P-value: {p_value}")
+
+def perform_sens_uncert_analysis(system_path, db, mc_base=10, mc_power=4,  calc=False):
+    pencillium_fu, proc_check = obtain_activities(system_path, db)
+    pen_df = calculate_sensitivity_results(pencillium_fu, proc_check, calc)
+    pen_compact_df, tot_df, pen_compact_idx = compacting_penicillium_dataframes(pen_df)
+    stat_arr_dct, pen_stat_tot = calc_senstivity_values(pen_compact_df, pen_compact_idx, tot_df)
+    sensitivity_plot(pen_stat_tot)
+    monte_carlo_plot(stat_arr_dct, mc_base, mc_power)

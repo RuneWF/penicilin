@@ -31,7 +31,7 @@ def initilization(path, matching_database, database_name, lcia_meth='recipe', bw
     for act in db:
         temp = act['name']
         # Check if the flow is valid and add to the flow list
-        if "pill" in temp or( "vial" in temp and "sc" in temp) or 'combined' in temp:
+        if "Defined daily dose" in temp:
             flow.append(temp)
     
     flow.sort()
@@ -128,26 +128,24 @@ def recipe_dataframe_split(df):
 # and the second is scaling the totals in each column to the max value
 def dataframe_element_scaling(df):
     # Creating a deep copy of the dataframe to avoid changing the original dataframe
-    df_tot = copy.deepcopy(df)
+    # df_tot = copy.deepcopy(df)
 
-    # Obating the sum of each process for each given LCIA category
-    for col in range(df.shape[1]):  # Iterate over columns
-        for row in range(df.shape[0]):  # Iterate over rows
-            tot = 0
-            for i in range(len(df.iloc[row,col])):
-                tot += df.iloc[row,col][i][1]
-            df_tot.iloc[row,col] = tot
+    df_tot = pd.DataFrame(0, index=df.index, columns=df.columns, dtype=object)
 
-    df_cols = df_tot.columns
-    df_cols = df_cols.to_list()
+    for col in df.columns:
+        for idx, dct in df.iterrows():
+            # print(f"{dct[col]} type is {type(dct[col])}")
+            for val in dct[col].values():
+                df_tot.at[idx, col] += val
+
 
     df_scaled = copy.deepcopy(df_tot)
 
     # Obtaing the scaled value of each LCIA results in each column to the max
-    for i in df_cols:
-        scaling_factor = max(abs(df_scaled[i]))
+    for col in df_scaled.columns:
+        scaling_factor = max(abs(df_scaled[col]))
         for _, row in df_scaled.iterrows():
-            row[i] /= scaling_factor
+            row[col] /= scaling_factor
 
     return df_tot, df_scaled
 
@@ -203,12 +201,12 @@ def rearrange_dataframe_index(df, database):
 
 def dataframe_results_handling(df, database_name, plot_x_axis_all, lcia_meth):
     # Rearrange the dataframe index based on the database name
-    df_rearranged = rearrange_dataframe_index(df, database_name)
+    # df_rearranged = rearrange_dataframe_index(df, database_name)
 
     # Check if the LCIA method is ReCiPe
     if 'recipe' in lcia_meth.lower():
         # Split the dataframe into midpoint and endpoint results
-        df_midpoint, df_endpoint = recipe_dataframe_split(df_rearranged)
+        df_midpoint, df_endpoint = recipe_dataframe_split(df)
         
         # Extract the endpoint categories from the plot x-axis
         plot_x_axis_end = plot_x_axis_all[-3:]
@@ -231,7 +229,7 @@ def dataframe_results_handling(df, database_name, plot_x_axis_all, lcia_meth):
 
     else:
         # If the LCIA method is not ReCiPe, use the rearranged dataframe as is
-        df_res = df_rearranged
+        df_res = df
         plot_x_axis = plot_x_axis_all
 
         # Return the processed dataframe and plot x-axis labels

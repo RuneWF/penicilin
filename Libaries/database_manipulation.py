@@ -69,7 +69,8 @@ def import_databases(matching_database, path):
 
     # Check if Ecoinvent databases are already present
     if matching_database in bd.databases:# and 'ev391apos' in bd.databases and 'ev391cutoff' in bd.databases:
-        print('Ecoinvent 3.9.1 is already present in the project.')
+        pass
+        # print('Ecoinvent 3.9.1 is already present in the project.')
     else:
 
         # Import Consequential database
@@ -210,8 +211,7 @@ def add_activity_to_biosphere3(df, act_dct):
                 # Save the updated method
                 method_obj.write(updated_cfs)
                 print(f"{method[1]} update complete.")
-            # else:
-            #     print(f"No update needed for {method[1]}")
+
         
         except Exception as e:
             print(f"An error occurred while processing {method[1]}: {e}")
@@ -265,5 +265,4 @@ def database_setup(path, matching_database, bw_project="Penicillin"):
             import_databases(db, path)
 
     if reload_database.has_been_called is False:
-        print("add new act")
         add_new_biosphere_activities(bw_project, path)

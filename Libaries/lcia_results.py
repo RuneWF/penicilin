@@ -7,7 +7,6 @@ import copy
 from standards import *
 from life_cycle_assessment import *
 from results_figures import *
-import sensitivity as st
 
 def perform_LCIA(unique_process_index, func_unit, impact_categories, file_name_unique, sheet_name, case):
     """
@@ -24,7 +23,6 @@ def perform_LCIA(unique_process_index, func_unit, impact_categories, file_name_u
     Returns:
     pd.DataFrame: DataFrame containing LCIA results.
     """
-
     # Ensure impact categories is a list
     if isinstance(impact_categories, tuple):
         impact_categories = list(impact_categories)
@@ -118,7 +116,7 @@ def lcia_dataframe_handling(file_name, sheet_name, impact_categories, file_name_
     if os.path.isfile(file_name_unique):
         try:
             # Import LCIA results
-            df_unique = import_LCIA_results(file_name_unique, impact_categories)
+            # df_unique = import_LCIA_results(file_name_unique, impact_categories)
             user_input = input(f"Do you want to redo the calculations for some process in {initialization[1]}?\n"
                                "Options:\n"
                                "  'y' - Yes, redo the calculations\n"
@@ -129,10 +127,12 @@ def lcia_dataframe_handling(file_name, sheet_name, impact_categories, file_name_
             # Redo calculations if user chooses 'y'
             if 'y' in user_input.lower():
                 df_unique = perform_LCIA(unique_process_index, unique_func_unit, impact_categories, file_name_unique, sheet_name, case=initialization[1])
+        
         except (ValueError, KeyError, TypeError) as e:
             print(e)
             # Perform LCIA if there is an error in importing results
             df_unique = perform_LCIA(unique_process_index, unique_func_unit, impact_categories, file_name_unique, sheet_name, case=initialization[1])
+    
     else:
         print(f"{file_name_unique} do not exist, but will be created now")
         # Perform LCIA if file does not exist
@@ -144,32 +144,34 @@ def lcia_dataframe_handling(file_name, sheet_name, impact_categories, file_name_
     else:
         # Initialize DataFrame for results
         df = pd.DataFrame(0, index=flows, columns=impact_categories, dtype=object)
-
+        df_unique =  import_LCIA_results(file_name_unique, impact_categories)
         for col in impact_categories:
-            for _, row in df.iterrows():
-                row[col] = []
+            for idx, row in df.iterrows():
+                row[col] = {}
 
         # Calculate impact values and store in DataFrame
         for col, impact in enumerate(impact_categories):
             for proc, fu in functional_unit.items():
-                for key, item in fu.items():
+                for row, (key, item) in enumerate(fu.items()):
                     exc = str(key)
+                    
                     val = float(item)
-                    factor = df_unique.at[exc, impact]
+                    factor = df_unique.iat[row, col]
                     if factor is not None:
                         impact_value = val * factor
                     else:
                         impact_value = None
-       
+
                     try:
-                        df.at[proc, impact].append([exc, impact_value])
+                        df.at[proc, impact].update({exc : impact_value})
                     except ValueError:
                         try:
-                            df.at[proc, impact].append([exc, impact_value])
                             exc = exc.replace(")",")'")
+                            df.at[proc, impact].update({exc : impact_value})
+                            
                         except ValueError:
                             print(f'value error for {proc}')
-        
+            
         # Save LCIA results to file
         save_LCIA_results(df, file_name, sheet_name)   
 
@@ -221,41 +223,5 @@ def quick_LCIA(initialization, file_name, file_name_unique, sheet_name):
 
     return df, plot_x_axis_all, impact_categories
 
-def df_index(key):
-    if '1' in key:
-        flow_leg = [
-                    'H2S',
-                    'H2R',
-                    'ASC',
-                    'ASW',
-                    'H4S',
-                    'H4R',
-                    'ALC',
-                    'ALW'
-                    ]
-        return flow_leg
-    else:
-        return ['SUD', 'MUD']
 
-def break_even_dataframe(be_path, case, lcia_method='recipe'):
-    file = join_path(be_path,'results')
-    file_path = join_path(file, f'{case}\\break_even_data_{case}.xlsx')
 
-    variables = st.break_even_initialization(be_path, lcia_method)
-
-    with pd.ExcelWriter(file_path) as writer:
-        for key in variables.keys():
-            df_GWP = variables[key][1]
-            database_name = variables[key][0]
-            flow_legend = variables[key][4]
-            columns = variables[key][-1]
-
-            columns = unique_elements_list(database_name)
-
-            df_be, ignore = process_categorizing(df_GWP, case, flow_legend, columns)
-            df_be.index = df_index(key)
-            df_be_copy = break_even_orginization(df_be, database_name)
-            
-            # Write each DataFrame to a different sheet
-            sheet_name = f"{key}"
-            df_be_copy.to_excel(writer, sheet_name=sheet_name, index=True, header=True)

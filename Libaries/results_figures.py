@@ -173,49 +173,21 @@ def process_categorizing(df_GWP, case, flow_legend, columns):
                 
     return df_stack_updated, totals_df
 
-def scenario_seperation(df):
-    # Define the scenarios to separate
-    scenarios = ["sc1", "sc2"]
-    data_df = {}
-    
-    # Loop through each scenario
-    for sc in scenarios:
-        # Create a temporary DataFrame to store scenario-specific data
-        temp = pd.DataFrame(0, index=[0, 1], columns=df.columns, dtype=object)
-        data_df[sc] = pd.DataFrame()
+def save_totals_to_excel(method, df):
+   
+    df_tot, _ = lc.dataframe_element_scaling(df)
+    df_tot_T = df_tot.T
 
-        # Loop through each column in the DataFrame
-        for col in df.columns:
-            sc_plc = 0
-            idx_lst = []
-            # Loop through each row in the DataFrame
-            for idx, row in df.iterrows():
-                if sc in idx:
-                    try:
-                        # Assign the row value to the temporary DataFrame
-                        temp.at[sc_plc, col] = row[col]
-                        idx_lst.append(idx)
-                        sc_plc += 1
-                    except (IndexError) as e:
-                        print(f"IndexError: {e} for {sc_plc}")
-        try:
-            # Set the index of the temporary DataFrame to the collected indices
-            temp.index = idx_lst
-        except ValueError as e:
-            print(f"ValueError: {e} for {idx_lst}")
-        data_df[sc] = temp
+    method_updated = []
 
-    # Create a copy of the original DataFrame
-    df_copy = dc(df)
-    # Drop rows that belong to "sc1" from the copied DataFrame
-    for idx, row in df_copy.iterrows():
-        if "sc1" in idx:
-            df_copy = df_copy.drop(idx)
-    
-    # Assign the remaining data to "sc3"
-    data_df["sc3"] = df_copy
-    
-    return data_df
+    for m in method:
+        method_updated.append(m[1:])
+
+    df_tot_T.index = method_updated
+
+    file_path_tot = r"C:\Users\ruw\Desktop\RA\penicilin\results\sensitivity\penincillium_totals.xlsx"
+
+    save_LCIA_results(df_tot_T, file_path_tot, "totals")
 
 def data_set_up(path, matching_database, database, lcia_method, bw_project):
     # Initialize the life cycle assessment and get file information
@@ -223,35 +195,34 @@ def data_set_up(path, matching_database, database, lcia_method, bw_project):
     _, file_name, file_name_unique_process = file_info 
 
     # Perform quick LCIA (Life Cycle Impact Assessment) and get the results
-    df_all, plot_x_axis_all, impact_categories = lr.quick_LCIA(initialization, file_name, file_name_unique_process, "penicillin")
+    df, plot_x_axis_all, impact_categories = lr.quick_LCIA(initialization, file_name, file_name_unique_process, "penicillin")
 
     # Separate the scenarios from the results
-    data_df = scenario_seperation(df_all)
+    # data_df = scenario_seperation(df_all)
     database_name = initialization[1]
 
-    data = {}
+    # data = []
 
     # Process each scenario's data
-    for sc, df in data_df.items():
-        df_res, plot_x_axis_lst = lc.dataframe_results_handling(df, database_name, plot_x_axis_all, initialization[3])
+    # for sc, df in data_df.items():
+    df_res, plot_x_axis_lst = lc.dataframe_results_handling(df, database_name, plot_x_axis_all, initialization[3])
 
-        if type(df_res) is list:
-            df_mid, df_endpoint = df_res
+    if type(df_res) is list:
+        df_mid, df_endpoint = df_res
+    # Scale the data for midpoint and endpoint
+    df_tot_mid, df_scaled_mid = lc.dataframe_element_scaling(df_mid)
+    
+    if 'recipe' in initialization[3].lower():
+        df_tot_end, df_scaled_end = lc.dataframe_element_scaling(df_endpoint)
 
-        # Scale the data for midpoint and endpoint
-        df_tot_mid, df_scaled_mid = lc.dataframe_element_scaling(df_mid)
-        
-        if 'recipe' in initialization[3].lower():
-            df_tot_end, df_scaled_end = lc.dataframe_element_scaling(df_endpoint)
+    # Extract the GWP (Global Warming Potential) column
+    df_col = [df_mid.columns[1]]
+    df_GWP = df_mid[df_col]
 
-        # Extract the GWP (Global Warming Potential) column
-        df_col = [df_mid.columns[1]]
-        df_GWP = df_mid[df_col]
-
-        # Store the processed data in the dictionary
-        data[sc] = [df_scaled_mid, df_scaled_end, df_GWP, df_tot_mid, df_tot_end]
+    # Store the processed data in the dictionary
+    # data = [df_scaled_mid, df_scaled_end, df_GWP, df_tot_mid, df_tot_end]
   
-    return data
+    return [df_scaled_mid, df_scaled_end, df_GWP, df_tot_mid, df_tot_end]
 
 def legend_text(text):
     if '1' in text:
@@ -293,600 +264,128 @@ def plot_title_text(lca_type):
     else:
         return ''
 
-def mid_end_legend_text(df, sc):
+def mid_end_legend_text(df):
     leg_idx = []
-    for txt in df.index:
-        if "sc3" not in txt:
-            txt = txt.replace(f" {sc}", "")
-            leg_idx.append(txt)
-        else:
-            txt = "sc3"
-            leg_idx.append(txt)
+    for idx in df.index:
+        txt = idx.replace(f", Defined daily dose", "")
+        leg_idx.append(txt)
+
     return leg_idx
 
-def midpoint_graph(data, recipe, plot_x_axis, folder):
+def midpoint_graph(df, recipe, plot_x_axis, folder):
     plot_text_size()
-    recipe = 'midpoint (H)'
-    colors = color_range()
+    recipe = 'Midpoint (H)'
+    colors = color_range(colorname="Greys", color_quantity=2)
 
-    for sc_idx, (sc, val) in enumerate(data.items()):
-        df = val[0]
-        # Extract columns and indices for plotting
-        columns_to_plot = df.columns
-        index_list = list(df.index.values)
-
-        # Create the plot
-        fig, ax = plt.subplots(1, figsize=(7, 5))
-        bar_width = 1 / (len(index_list) + 1)
-        index = np.arange(len(columns_to_plot))
-
-        # Plot each group of bars
-        for i, process in enumerate(df.index):
-            values = df.loc[process, columns_to_plot].values
-            color = colors[i % len(colors)]  # Ensure color cycling
-            ax.bar(index + i * bar_width, values, bar_width, label=process, color=color)
-
-        # Set title and labels
-        ax.set_title(f"Scenario {sc_idx+1} - {recipe}")  
-        ax.set_xticks(index + bar_width * (len(index_list) - 1) / 2)
-        ax.set_xticklabels(plot_x_axis, rotation=90)  # Added rotation here
-        ax.set_yticks(np.arange(0, 1 + 0.001, step=0.1))
-
- 
-        # xlim(sc, ax, columns_to_plot)
-
-        x_pos = 0.94
-
-        leg_idx = mid_end_legend_text(df, sc)
-
-
-        fig.legend(
-            leg_idx,
-            loc='upper left',
-            bbox_to_anchor=(0.965, x_pos),
-            ncol= 1,  # Adjust the number of columns based on legend size
-            fontsize=10,
-            frameon=False
-        )
-
-        # Save the plot with high resolution
-        output_file = os.path.join(
-            folder,
-            f'{recipe}_{sc}.png'
-        )
-        plt.tight_layout()
-        plt.savefig(output_file, dpi=300, format='png', bbox_inches='tight')
-        plt.show()
-
-def endpoint_graph(data, recipe, plot_x_axis_end, folder):
-    plot_text_size()
-    colors = color_range()
-    recipe = 'endpoint (H)'
-
-    plot_text_size()
-    colors = color_range()
-
-    for sc_idx, (sc, val) in enumerate(data.items()):
-        df = val[1]
-        # Extract columns and indices for plotting
-        columns_to_plot = df.columns
-        index_list = list(df.index.values)
-
-        # Create the plot
-        fig, ax = plt.subplots(1, figsize=(7, 5))
-        bar_width = 1 / (len(index_list) + 1)
-        index = np.arange(len(columns_to_plot))
-
-        # Plot each group of bars
-        for i, process in enumerate(df.index):
-            values = df.loc[process, columns_to_plot].values
-            color = colors[i % len(colors)]  # Ensure color cycling
-            ax.bar(index + i * bar_width, values, bar_width, label=process, color=color)
-
-        # Set title and labels
-        ax.set_title(f"Scenario {sc_idx+1} - {recipe}")  
-        ax.set_xticks(index + bar_width * (len(index_list) - 1) / 2)
-        ax.set_xticklabels(plot_x_axis_end, rotation=0)  # Added rotation here
-        ax.set_yticks(np.arange(0, 1 + 0.001, step=0.1))
-
- 
-        # xlim(sc, ax, columns_to_plot)
-
-        x_pos = 0.94
-
-        leg_idx = mid_end_legend_text(df, sc)
-        
-        fig.legend(
-            leg_idx,
-            loc='upper left',
-            bbox_to_anchor=(0.965, x_pos),
-            ncol= 1,  # Adjust the number of columns based on legend size
-            fontsize=10,
-            frameon=False
-        )
-
-        # Save the plot with high resolution
-        output_file = os.path.join(
-            folder,
-            f'{recipe}_{sc}.png'
-        )
-        plt.tight_layout()
-        plt.savefig(output_file, dpi=300, format='png', bbox_inches='tight')
-        plt.show()
-
-def gwp_figure_setup(data, path, initialization, flow_legend, folder):
-    for sc, df in data.items():
-
-        _, database_name1, _, _, tp = initialization[f'{case}_cut_off']
-        columns1 = lc.unique_elements_list(database_name1)
-        
-        df1s, totals_df1 = process_categorizing(df1gwp, case, flow_legend, columns1)
-
-        _, database_name2, _, _, tp = initialization[f'{case}_consq']
-        columns2 = lc.unique_elements_list(database_name2)
-        df2s, totals_df2 = process_categorizing(df2gwp, case, flow_legend, columns2)
-
-    
-
-    return folder, df1s, totals_df1, df2s, totals_df2, columns1
-
-def y_min_max(case):
-    if '1' in case:
-        y_min1 = -0.6
-        y_max1 = 1.8
-        y_min2 = -0.6
-        y_max2 = 1.8
-
-    else:
-        y_min1 = -0.4
-        y_max1 = 1.6
-        y_min2 = -0.4
-        y_max2 = 1.6
-
-    return y_min1, y_max1, y_min2, y_max2
-
-def gwp_figure(data, case, path, initialization):
-    flow_legend = legend_text(case)
-    folder, df1s, totals_df1, df2s, totals_df2, columns1 = gwp_figure_setup(data, case, path, initialization, flow_legend)
-    plot_text_size()
-    colors = color_range()
-    
+    # Extract columns and indices for plotting
+    columns_to_plot = df.columns
+    index_list = list(df.index.values)
 
     # Create the plot
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7, 9))
-    marker_color = 'k'
-    # cut off
-    df1s.plot(kind='bar', stacked=True, ax=ax1, color=colors, zorder=2, legend=False)
-    ax1.axhline(y=0, color='k', linestyle='-', zorder=0, linewidth=0.5)
-    ax1.set_ylabel('Global Warming Potential [kg CO$_2$e/FU]',  fontsize=12)
+    fig, ax = plt.subplots(1, figsize=(7, 5))
+    bar_width = 1 / (len(index_list) + 1)
+    index = np.arange(len(columns_to_plot))
 
-    # Plotting 'Total' values as dots and including it in the legend
-    for idx, row in totals_df1.iterrows():
-        unit = row['Category'][0]
-        total = row['Value']
-        ax1.plot(unit, total, 'D', color=marker_color, markersize=4, mec='k', label='Net impact' if idx == 0 else "")
-        # Add the data value
-        ax1.text(
-            unit, total - 0.12, f"{total:.2f}", 
-            ha='center', va='bottom', fontsize=10, 
-            color=marker_color)
+    # Plot each group of bars
+    for i, process in enumerate(df.index):
+        values = df.loc[process, columns_to_plot].values
+        color = colors[i % len(colors)]  # Ensure color cycling
+        ax.bar(index + i * bar_width, 
+               values, bar_width, 
+               label=process, 
+               color=color,
+               hatch="///",
+               edgecolor="k")
 
-    # Custom legend with 'Total' included
-    handles, labels = ax1.get_legend_handles_labels()
-    handles.append(
-        plt.Line2D([0], [0], marker='D', color='w', markerfacecolor=marker_color, mec='k', markersize=4, label='Net impact')
-    )
+    # Set title and labels
+    ax.set_title(f"{recipe}")  
+    ax.set_xticks(index + bar_width * (len(index_list) - 1) / 2)
+    ax.set_xticklabels(plot_x_axis, rotation=90)  # Added rotation here
+    ax.set_yticks(np.arange(0, 1 + 0.001, step=0.1))
 
-    # CONSQ
-    df2s.plot(kind='bar', stacked=True, ax=ax2, color=colors, zorder=2, legend=False)
-    ax2.axhline(y=0, color='k', linestyle='-', zorder=0, linewidth=0.5)
-    ax2.set_ylabel('Global Warming Potential [kg CO$_2$e/FU]',  fontsize=12)
 
-    # Plotting 'Total' values as dots and including it in the legend
-    for idx, row in totals_df2.iterrows():
-        unit = row['Category'][0]
-        total = row['Value']
-        ax2.plot(unit, total, 'D', color=marker_color, markersize=4, mec='k', label='Net impact' if idx == 0 else "")
-        # Add the data value
-        ax2.text(
-            unit, total - 0.15, f"{total:.2f}", 
-            ha='center', va='bottom', fontsize=10, 
-            color=marker_color)
+    # xlim(sc, ax, columns_to_plot)
 
-    # Custom legend with 'Total' included
-    handles, labels = ax2.get_legend_handles_labels()
-    handles.append(
-        plt.Line2D([0], [0], marker='D', color='w', markerfacecolor=marker_color, mec='k', markersize=4, label='Net impact')
-    )
+    x_pos = 0.94
+
+    # leg_idx = mid_end_legend_text(df, sc)
+
 
     fig.legend(
-        labels=columns1,
-        handles=handles,
-        loc="upper center",  # Place legend at the bottom center
-        bbox_to_anchor=(1.13, 0.97),  # Adjust position to below the x-axis
-        ncol=1,  # Display legend entries in 3 columns
-        fontsize=10.5,
-        frameon=False  # Remove the legend box
+        mid_end_legend_text(df),
+        loc='upper left',
+        bbox_to_anchor=(0.965, x_pos),
+        ncol= 1,  # Adjust the number of columns based on legend size
+        fontsize=10,
+        frameon=False
     )
 
-    y_min1, y_max1, y_min2, y_max2 = y_min_max(case)
-
-    # Set title, y-ticks, y-limits, and x-tick labels for ax1
-    ax1.set_title(plot_title_text('cut'), fontsize=14)
-    ax1.set_yticks(np.arange(y_min1,y_max1 + 0.01, step=0.2))
-    ax1.set_ylim(y_min1 - 0.05, y_max1 + 0.05)
-    ax1.set_xticklabels(legend_text(initialization[f'{case}_cut_off'][1]), rotation=0, fontsize=11)
-
-
-
-
-    # Set title, y-ticks, y-limits, and x-tick labels for ax2
-    ax2.set_title(plot_title_text('consq'), fontsize=14)
-    ax2.set_yticks(np.arange(y_min2, y_max2 + 0.01, step=0.2))
-    ax2.set_ylim(y_min2 - 0.05, y_max2 + 0.05)
-    ax2.set_xticklabels(legend_text(initialization[f'{case}_consq'][1]), rotation=0, fontsize=11)
-
+    # Save the plot with high resolution
+    output_file = os.path.join(
+        folder,
+        f'{recipe}.png'
+    )
     plt.tight_layout()
-
-    filename = join_path(folder, f'gwp_{case}.png')
-    plt.savefig(filename, dpi=300, format='png', bbox_inches='tight')  # Save with 300 dpi resolution
+    plt.savefig(output_file, dpi=300, format='png', bbox_inches='tight')
     plt.show()
 
-def break_even_orginization(df_be, case):
-    df_be_copy = dc(df_be)
-    if '1' in case:
-        wipe_small_container = df_be.at['ASW', 'Disinfection']
-        wipe_large_container = df_be.at['ALW', 'Disinfection']
-
-        # Avoided energy
-        cabinet_small_avoided_energy = df_be.at['ASC', 'Avoided energy prod.']
-        wipe_small_avoided_energy = df_be.at['ASW', 'Avoided energy prod.']
-
-        allocate_avoided_energy_S = wipe_small_avoided_energy - cabinet_small_avoided_energy
-
-        cabinet_large_avoided_energy = df_be.at['ALC', 'Avoided energy prod.']
-        wipe_large_avoided_energy = df_be.at['ALW', 'Avoided energy prod.']
-
-        allocate_avoided_energy_L = wipe_large_avoided_energy - cabinet_large_avoided_energy
-
-
-
-        # Incineration
-        cabinet_small_inc = df_be.at['ASC', 'Incineration']
-        wipe_small_inc = df_be.at['ASW', 'Incineration']
-
-        allocate_inc_S = wipe_small_inc - cabinet_small_inc
-
-        cabinet_large_inc = df_be.at['ALC', 'Incineration']
-        wipe_large_inc = df_be.at['ALW', 'Incineration']
-
-        allocate_inc_L = wipe_large_inc - cabinet_large_inc
-
-        # Recycling
-        cabinet_small_rec = df_be.at['ASC', 'Recycling']
-        wipe_small_rec = df_be.at['ASW', 'Recycling']
-
-        allocate_rec_S = wipe_small_rec - cabinet_small_rec
-
-        cabinet_large_rec = df_be.at['ALC', 'Recycling']
-        wipe_large_rec = df_be.at['ALW', 'Recycling']
-
-        allocate_rec_L = wipe_large_rec - cabinet_large_rec
-
-        # Calculating the new sums
-
-        wipe_small_container_new = wipe_small_container + allocate_avoided_energy_S + allocate_inc_S + allocate_rec_S
-
-        wipe_large_container_new = wipe_large_container + allocate_avoided_energy_L  + allocate_inc_L +allocate_rec_L
-
-
-        df_be_copy.at['ASW', 'Avoided energy prod.'] = cabinet_small_avoided_energy
-        df_be_copy.at['ALW', 'Avoided energy prod.'] = cabinet_large_avoided_energy
-
-        df_be_copy.at['ASW', 'Incineration'] = cabinet_small_inc
-        df_be_copy.at['ALW', 'Incineration'] = cabinet_large_inc
-
-        df_be_copy.at['ASW', 'Disinfection'] = wipe_small_container_new
-        df_be_copy.at['ALW', 'Disinfection'] = wipe_large_container_new
-
-        df_be_copy.at['ASW', 'Recycling'] = cabinet_small_rec
-        df_be_copy.at['ALW', 'Recycling'] = cabinet_large_rec
-
-    return df_be_copy
-
-def break_even_setup(data, case, initialization, path):
-    df1be = data[case][f'{case}_cut_off'][3]
-    df2be = data[case][f'{case}_consq'][3]
-
-    df1be.index = legend_text(initialization[f'{case}_cut_off'][1])
-    df2be.index = legend_text(initialization[f'{case}_consq'][1])
-
-    folder = results_folder(join_path(path,'results'), case)
-
-    return df1be, df2be, folder
-
-def be_case1_setup(df1be, case):
-    amount_of_uses =513
-    
-    df_be_copy = break_even_orginization(df1be, case)
-    # Split index into small and large based on criteria
-    small_idx = [idx for idx in df_be_copy.index if '2' in idx or 'AS' in idx]
-    large_idx = [idx for idx in df_be_copy.index if idx not in small_idx]
-
-    # Create empty DataFrames for each scenario
-    scenarios = {
-        'small': pd.DataFrame(0, index=small_idx, columns=df_be_copy.columns, dtype=object),
-        'large': pd.DataFrame(0, index=large_idx, columns=df_be_copy.columns, dtype=object)
-    }
-    dct = {}
-    # Fill scenarios with data
-    for sc_idx, (scenario_name, scenario_df) in enumerate(scenarios.items()):
-        scenario_df.update(df_be_copy.loc[scenario_df.index])
-
-        use_cycle, production = {}, {}
-
-        for idx, row in scenario_df.iterrows(): 
-            use, prod = 0, 0
-            for col in df_be_copy.columns:
-                if ('autoclave' in col.lower() or 'disinfection' in col.lower()) and 'H' not in idx:
-                    use_cycle[idx] = row[col] + use
-                    use += row[col]
-                elif 'A' in idx:
-                    # print(idx, col ,(row[col] + prod) * amount_of_uses)
-                    production[idx] = (row[col] + prod) * amount_of_uses
-                    prod += row[col]
-                    
-                else:
-                    production[idx] = row[col] + prod
-                    prod += row[col]
-        
-        # Calculate break-even values
-        be_dct = {}
-        for key, usage in production.items():
-                be_dct[key] = []
-                for u in range(1, amount_of_uses + 1):
-                    # if u == 1:
-                    #     be_dct[key].append(usage)
-                    # else:
-                    be_dct[key].append(use_cycle.get(key, usage) * u + usage)
-                    
-        dct[scenario_name] = be_dct
-    return dct
-
-def be1_figure(data, case, initialization, path):
+def endpoint_graph(df, recipe, plot_x_axis_end, folder):
     plot_text_size()
-    colors = color_range()
-    # Plot results
-    fig, axs = plt.subplots(2, 2, figsize=(14, 10))
-
-    ax1 = axs[0, 0]
-    ax2 = axs[0, 1]
-    ax3 = axs[1, 0]
-    ax4 = axs[1, 1]
-
-    color_idxs = [0, 1, 2, 4]
-    color_idxl = [3, 5, 6, 7]
-    
-    df1be, df2be, folder = break_even_setup(data, case, initialization, path)
-
-    be1 = be_case1_setup(df1be, case)
-    s1 = be1['small']
-    l1 = be1['large']
-
-    
-
-    # cut off
-    for idx, (key, value) in enumerate(s1.items()):
-        try:
-            if 'H' in key:
-                ax1.plot(value, label=key, linestyle='dashed', color=colors[color_idxs[idx] % len(colors)], linewidth=3)
-            else:
-                ax1.plot(value, label=key, color=colors[color_idxs[idx]], linewidth=3)
-        except IndexError:
-            print(f'Color index of {color_idxs[idx]} is out of range, choose a value between 0 and {len(colors) - 1}')
-
-    for idx, (key, value) in enumerate(l1.items()):
-        try:
-            if 'H' in key:
-                ax2.plot(value, label=key, linestyle='dashed', color=colors[color_idxl[idx] % len(colors)], linewidth=3)
-            else:
-                ax2.plot(value, label=key, color=colors[color_idxl[idx]], linewidth=3)
-        except IndexError:
-            print(f'Color index of {color_idxl[idx]} is out of range, choose a value between 0 and {len(colors) - 1}')
-
-    # consq
-    be2 = be_case1_setup(df2be, case)
-    s2 = be2['small']
-    l2 = be2['large']
-
-    for idx, (key, value) in enumerate(s2.items()):
-        try:
-            if 'H' in key:
-                ax3.plot(value, label=key, linestyle='dashed', color=colors[color_idxs[idx] % len(colors)], linewidth=3)
-            else:
-                ax3.plot(value, label=key, color=colors[color_idxs[idx]], linewidth=3)
-        except IndexError:
-            print(f'Color index of {color_idxs[idx]} is out of range, choose a value between 0 and {len(colors) - 1}')
-
-    for idx, (key, value) in enumerate(l2.items()):
-        try:
-            if 'H' in key:
-                ax4.plot(value, label=key, linestyle='dashed', color=colors[color_idxl[idx] % len(colors)], linewidth=3)
-            else:
-                ax4.plot(value, label=key, color=colors[color_idxl[idx]], linewidth=3)
-        except IndexError:
-            print(f'Color index of {color_idxl[idx]} is out of range, choose a value between 0 and {len(colors) - 1}')
-
-    # Create custom legend handles and labels
-    handles = []
-    labels = []
-
-    for idx, key in enumerate(s1.keys()):
-        handles.append(plt.Line2D([0], [0], color=colors[color_idxs[idx]], linewidth=3, linestyle='dashed' if 'H' in key else 'solid'))
-        labels.append(key)
-
-    for idx, key in enumerate(l1.keys()):
-        handles.append(plt.Line2D([0], [0], color=colors[color_idxl[idx]], linewidth=3, linestyle='dashed' if 'H' in key else 'solid'))
-        labels.append(key)
-
-    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, -0), ncol=8, fontsize=10.5, frameon=False)
-
-    ax1.set_title(f"{plot_title_text('cut')} - Small")
-    ax2.set_title(f"{plot_title_text('cut')} - Large")
-    ax3.set_title(f"{plot_title_text('consq')} - Small")
-    ax4.set_title(f"{plot_title_text('consq')} - Large")
-
-    ax1.set_xlabel('Cycle(s)')
-    ax2.set_xlabel('Cycle(s)')
-    ax3.set_xlabel('Cycle(s)')
-    ax4.set_xlabel('Cycle(s)')
-
-    ax1.set_ylabel('Accumulated Global Warming Pot. [kg CO$_2$e]')
-    ax2.set_ylabel('Accumulated Global Warming Pot. [kg CO$_2$e]')
-    ax3.set_ylabel('Accumulated Global Warming Pot. [kg CO$_2$e]')
-    ax4.set_ylabel('Accumulated Global Warming Pot. [kg CO$_2$e]')
-
-    ax1.set_xlim(0, 513)
-    ax2.set_xlim(0, 513)
-    ax3.set_xlim(0, 513)
-    ax4.set_xlim(0, 513)
-    y1 = 350
-    y2 = 800
-    ax1.set_ylim(0, y1)
-    ax2.set_ylim(0, y2)
-    ax3.set_ylim(0, y1)
-    ax4.set_ylim(0, y2)
-
-    ax1.set_yticks(range(0, y1 + 5, 50))
-    ax2.set_yticks(range(0, y2 + 5, 100))
-    ax3.set_yticks(range(0, y1 + 5, 50))
-    ax4.set_yticks(range(0, y2 + 5, 100))
-
-    # Adjust layout to add a 0.5 cm gap between the figures
-    plt.subplots_adjust(hspace=0.6 / 2.54)  # 0.5 cm gap converted to inches
-
-    plt.tight_layout()
-
-    # Save and display plot
-    filename = join_path(folder, f'break_even_{case}.png')
-    plt.savefig(filename, dpi=300, format='png', bbox_inches='tight')  # Save with 300 dpi resolution
-    plt.show()
-
-def be_case2_setup(df_be):
-    amount_of_uses = 250
-    multi_use, production = {}, {}
-    for idx, row in df_be.iterrows(): 
-        use, prod = 0, 0
-        for col in df_be.columns:
-            if 'Disinfection' in col and 'SUD' not in idx:
-                multi_use[idx] = row[col] + use
-                use += row[col]
-            elif 'MUD' in idx:
-
-                production[idx] = (row[col] + prod) * amount_of_uses
-                prod += row[col]
-            else:
-                production[idx] = row[col] + prod
-                prod += row[col]
-
-    # Calculate break-even values
-    be_dct = {}
-    for key, usage in production.items():
-        be_dct[key] = []
-        for u in range(1, amount_of_uses + 1):
-            # if u == 1:
-            #     be_dct[key].append(usage)
-            # else:
-            be_dct[key].append(multi_use.get(key, usage) * u + usage)
-        
-    return be_dct
-
-def be2_figure(data, case, initialization, path):
-    color_idx = [0, 1, 2, 4]
-    df1be = data[case][f'{case}_cut_off'][3]
-    df2be = data[case][f'{case}_consq'][3]
-
-    df1be, df2be, folder = break_even_setup(data, case, initialization, path)
-
-    dfbe1 = be_case2_setup(df1be)
-    dfbe2 = be_case2_setup(df2be)
-
-    
+    colors = color_range(colorname="Greys", color_quantity=2)
+    recipe = 'Endpoint (H)'
 
     plot_text_size()
-    colors = color_range()
 
-    # Plot results
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7, 10))
+    # for sc_idx, (sc, val) in enumerate(data.items()):
+    # Extract columns and indices for plotting
+    columns_to_plot = df.columns
+    index_list = list(df.index.values)
 
-    for idx, (key, value) in enumerate(dfbe1.items()):
-        try:
-            if 'RMD' in key or 'SUD' in key:
-                ax1.plot(value, label=key, linestyle='dashed', color=colors[color_idx[idx] % len(colors)], linewidth=3)
-            else:
-                ax1.plot(value, label=key, color=colors[color_idx[idx]], linewidth=3)
-        except IndexError:
-            print(f'Color index of {color_idx[idx]} is out of range, choose a value between 0 and {len(colors) - 1}')
+    # Create the plot
+    fig, ax = plt.subplots(1, figsize=(7, 5))
+    bar_width = 1 / (len(index_list) + 1)
+    index = np.arange(len(columns_to_plot))
 
-    for idx, (key, value) in enumerate(dfbe2.items()):
-        try:
-            if 'RMD' in key or 'SUD' in key:
-                ax2.plot(value, label=key, linestyle='dashed', color=colors[color_idx[idx] % len(colors)], linewidth=3)
-            else:
-                ax2.plot(value, label=key, color=colors[color_idx[idx]], linewidth=3)
-        except IndexError:
-            print(f'Color index of {color_idx[idx]} is out of range, choose a value between 0 and {len(colors) - 1}')
+    # Plot each group of bars
+    for i, process in enumerate(df.index):
+        values = df.loc[process, columns_to_plot].values
+        color = colors[i % len(colors)]  # Ensure color cycling
+        ax.bar(index + i * bar_width, 
+               values, bar_width, 
+               label=process, 
+               color=color, 
+               hatch="//",
+               edgecolor="k")
+        
+    # Set title and labels
+    ax.set_title(f"{recipe}")  
+    ax.set_xticks(index + bar_width * (len(index_list) - 1) / 2)
+    ax.set_xticklabels(plot_x_axis_end, rotation=0)  # Added rotation here
+    ax.set_yticks(np.arange(0, 1 + 0.001, step=0.1))
 
-    # Create custom legend handles and labels
-    handles = []
-    labels = []
 
-    for idx, key in enumerate(dfbe1.keys()):
-        handles.append(plt.Line2D([0], [0], color=colors[color_idx[idx]], linewidth=3, linestyle='dashed' if 'H' in key else 'solid'))
-        labels.append(key)
+    # xlim(sc, ax, columns_to_plot)
 
-    # Customize plot
+    x_pos = 0.94
+
+    
     fig.legend(
-        handles,
-        labels,
-        loc="upper center",  # Place legend at the bottom center
-        bbox_to_anchor=(0.97, 0.89),  # Adjust position to below the x-axis
-        ncol=1,  # Display legend entries in 3 columns
-        fontsize=10.5,
-        frameon=False  # Remove the legend box
+        mid_end_legend_text(df),
+        loc='upper left',
+        bbox_to_anchor=(0.965, x_pos),
+        ncol= 1,  # Adjust the number of columns based on legend size
+        fontsize=10,
+        frameon=False
     )
 
-    ax1.set_title(f"{plot_title_text('cut')}")
-    ax2.set_title(f"{plot_title_text('consq')}")
-    ax1.set_xlabel('Cycle(s)\n')
-    ax2.set_xlabel('Cycle(s)')
-
-    ax1.set_ylabel('Accumulated Global Warming Pot. [kg CO$_2$e]')
-    ax2.set_ylabel('Accumulated Global Warming Pot. [kg CO$_2$e]')
-
-    ax1.set_xlim(0, 250)
-    ax2.set_xlim(0, 250)
-
-    ax1.set_ylim(0, 355)
-    ax2.set_ylim(0, 355)
-
-    ax1.set_yticks(range(0, 400 + 5, 50))
-    ax2.set_yticks(range(0, 400 + 5, 50))
-
-
-    # Adjust layout to add a 0.5 cm gap between the figures
-    plt.subplots_adjust(hspace=0.6 / 2.54)  # 0.5 cm gap converted to inches
-
-    # Save and display plot
-    filename = join_path(folder, f'break_even_{case}.png')
-    plt.savefig(filename, dpi=300, format='png', bbox_inches='tight')  # Save with 300 dpi resolution
+    # Save the plot with high resolution
+    output_file = os.path.join(
+        folder,
+        f'{recipe}.png'
+    )
+    plt.tight_layout()
+    plt.savefig(output_file, dpi=300, format='png', bbox_inches='tight')
     plt.show()
-
-def be_figure(case, data, initialization, path):
-    if '1' in case:
-        be1_figure( data, case, initialization, path)
-    else:
-        be2_figure(data, case, initialization, path)
 
 def create_results_figures(path, matching_database, database, lcia_method, bw_project):
     # Set the current Brightway project
@@ -916,7 +415,8 @@ def create_results_figures(path, matching_database, database, lcia_method, bw_pr
         plot_x_axis_mid.append(string[0])
     
     data = data_set_up(path, matching_database, database, lcia_method, bw_project)
+    
+    midpoint_graph(data[0], 'recipe', plot_x_axis_mid, folder)
+    endpoint_graph(data[1], 'recipe', plot_x_axis_end, folder)
 
-    midpoint_graph(data, 'recipe', plot_x_axis_mid, folder)
-    endpoint_graph(data, 'recipe', plot_x_axis_end, folder)
-    # gwp_figure(data, case, path, initialization)
+    return data

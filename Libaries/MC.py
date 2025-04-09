@@ -3,14 +3,16 @@ import bw2calc as bc
 
 import numpy as np
 import pandas as pd
-from lca import lca
+
 
 from time import time
 
 from life_cycle_assessment import lcia_impact_method
 
+# Importing the parent class
+from lca import LCA
 
-class monte_carlo(lca):
+class MonteCarlo(LCA):
     # initialization of all the required parameters
     def __init__(self, path, matching_database, database_name, itterations, project="Penicillin", database="penicillin_cut_off"):
         super().__init__(path, matching_database, database_name)
@@ -69,7 +71,7 @@ class monte_carlo(lca):
                     if "ev391cutoff" == exc['database']:
                         self.dct[act].update({exc.input: exc['amount']})
                     else:
-                        monte_carlo.find_exchanges(exc, self.dct, act, self.uncert)
+                        self.find_exchanges(exc, self.dct, act, self.uncert)
                 elif "biosphere3" in exc['database']:
                     self.dct[act].update({exc.input: exc['amount']})
                     # print(exc.input)
@@ -105,7 +107,7 @@ class monte_carlo(lca):
                 self.sc_uncrt[sc].update({'scale' : scale/len(self.uncert[sc])})
 
             except KeyError:
-                pass
+                print(f"{KeyError} for {sc}")
         
         return self.sc_uncrt
 
@@ -146,7 +148,6 @@ class monte_carlo(lca):
             arr_temp = np.zeros(self.itterations)
             for col in self.df_mc.columns:
                 arr_temp[col-1] = row[col]
-                # print(arr_res[col-1], idx,row[col])
             self.dct_MC[idx] = arr_temp
         return self.dct_MC
 
@@ -158,20 +159,17 @@ class monte_carlo(lca):
         for act, arr in self.dct_MC.items():
             self.data_proccessing_dct[act] = {}
             for dp in data_proccessing:
-                print(act, arr, dp)
                 if 'mean' in dp.lower():
                     self.data_proccessing_dct[act].update({dp : np.mean(arr)})
-                        # print(index)
                 elif 'median' in dp.lower():
                     self.data_proccessing_dct[act].update({dp : np.median(arr)})
-                    # print(index)
                 elif 'standard' in dp.lower():
                     self.data_proccessing_dct[act].update({dp : np.std(arr)})
-                    # print(index)
                 elif 'minimum' in dp.lower():
                     self.data_proccessing_dct[act].update({dp : np.min(arr)})
-                    # print(index)
                 elif 'maximum' in dp.lower():
                     self.data_proccessing_dct[act].update({dp : np.max(arr)})
 
         return self.data_proccessing_dct
+    
+
