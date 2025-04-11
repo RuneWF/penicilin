@@ -323,7 +323,7 @@ def monte_carlo_plot(stat_arr_dct, base=10, power=4):
     data1 = arr_lst[0]
     data2 = arr_lst[1]
     t_stat, p_value = stats.ttest_ind(data1, data2)
-    print(f"T-value: {t_stat}, P-value: {p_value}")
+    print(f"T-statistic: {t_stat}, P-value: {p_value}")
 
 # Main function to perform sensitivity and uncertainty analysis
 def perform_sens_uncert_analysis(system_path, db, mc_base=10, mc_power=4, calc=False):
@@ -333,3 +333,4 @@ def perform_sens_uncert_analysis(system_path, db, mc_base=10, mc_power=4, calc=F
     stat_arr_dct, pen_stat_tot = calc_senstivity_values(pen_compact_df, pen_compact_idx, tot_df)
     sensitivity_plot(pen_stat_tot)
     monte_carlo_plot(stat_arr_dct, mc_base, mc_power)
+
