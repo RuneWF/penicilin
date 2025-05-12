@@ -6,10 +6,16 @@ import pandas as pd
 
 import standards as s
 
+from lca import LCA
 
-def import_excel_database_to_brightway(data, matching_database, path_github):
+path = r'C:/Users/ruw/Desktop'
+matching_database = "ev391cutoff"
+
+lca_init = LCA(path=path,matching_database=matching_database)
+
+def import_excel_database_to_brightway(data):
     # Save the data to a temporary file that can be used by ExcelImporter
-    temp_path = s.join_path(path_github, r"data\temp.xlsx")
+    temp_path = s.join_path(lca_init.path_github, r"data\temp.xlsx")
 
     data.to_excel(temp_path, index=False)
     
@@ -18,13 +24,11 @@ def import_excel_database_to_brightway(data, matching_database, path_github):
     imp.apply_strategies()
 
     # Loop through each database and match
-    print(f"Matching database: {matching_database}")
-    imp.match_database(matching_database, fields=('name', 'unit', 'location', 'reference product'))
+    print(f"Matching database: {lca_init.matching_database}")
+    imp.match_database(lca_init.matching_database, fields=('name', 'unit', 'location', 'reference product'))
     if list(imp.unlinked):
-        print(f"Unlinked items after matching {matching_database}: {list(imp.unlinked)}")
+        print(f"Unlinked items after matching {lca_init.matching_database}: {list(imp.unlinked)}")
 
-    # Match without specifying a database
-    # imp.match_database(fields=('name', 'unit', 'location'))
 
     # Generate statistics and write results
     imp.statistics()
@@ -40,53 +44,99 @@ def import_excel_database_to_brightway(data, matching_database, path_github):
 
 import_excel_database_to_brightway.has_been_called = False
 
-def reload_database(matching_database, system_path, path_github, proj_database):
+def reload_database(proj_database, sheet, user_input):
     reload_database.has_been_called = True
-    user_input = input(f"Do you want to reload the {proj_database}? Enter 'y' for yes and 'n' for no")
-    
     if user_input.lower() == 'y':
 
-        data = pd.read_excel(system_path, sheet_name=matching_database)
+        data = pd.read_excel(lca_init.system_path, sheet_name=sheet)
 
         # Removing the old database
         db_old = bd.Database(proj_database)
         db_old.deregister()
 
-        import_excel_database_to_brightway(data, matching_database, path_github)
+        import_excel_database_to_brightway(data)
 
     elif user_input.lower() == 'n':
-        print('You selected to not reload')
+        pass
 
     else:
         print('Invalid argument, try again')
-        reload_database(matching_database, matching_database, system_path)
+        user_input = input("Do you want to reload the databases? [y/n] (y for yes and n for no)")
+        reload_database(proj_database, sheet, user_input)
 
 reload_database.has_been_called = False
 
-def import_databases(matching_database, path):
+def extract_excel_sheets():
+    # Use a context manager to open the Excel file
+    with pd.ExcelFile(lca_init.system_path) as excel_file:
+        # Get the sheet names
+        sheet_names = excel_file.sheet_names
+    
+    sheets_to_import = []
+    for sheet in sheet_names:
+        if lca_init.matching_database in sheet:
+            sheets_to_import.append(sheet)
+    return sheets_to_import
 
-    path_github, ecoinevnt_paths, system_path = s.data_paths(path)
+def extract_database(data, user_input, sheet="ev391cutoff"):
+    proj_database_str = data.columns[1]
+    if proj_database_str not in bd.databases:
+        import_excel_database_to_brightway(data)
 
+    # Reload databases if needed
+    if import_excel_database_to_brightway.has_been_called is False:
+        reload_database(proj_database_str, sheet, user_input)
+
+def is_db_in_project(sheets_to_import):
+    import_db = False
+
+    if isinstance(sheets_to_import,str):
+        sheets_to_import = [sheets_to_import]
+
+    for sheet in sheets_to_import:
+        data = pd.read_excel(lca_init.system_path, sheet_name=sheet)
+        # db_lst.append(data.columns[1])
+        if data.columns[1] not in bd.databases:
+            print(f"{data.columns[1]} not in {bd.projects.current}")
+            import_db = True
+            break
+        else:
+            pass
+    return import_db
+
+def import_databases(sensitivty=False):
     # Check if Ecoinvent databases are already present
-    if matching_database in bd.databases:# and 'ev391apos' in bd.databases and 'ev391cutoff' in bd.databases:
+    if lca_init.matching_database in bd.databases:# and 'ev391apos' in bd.databases and 'ev391cutoff' in bd.databases:
         pass
-        # print('Ecoinvent 3.9.1 is already present in the project.')
     else:
-
         # Import Consequential database
-        ei = bi.SingleOutputEcospold2Importer(dirpath=ecoinevnt_paths[matching_database], db_name=matching_database)
+        ei = bi.SingleOutputEcospold2Importer(dirpath=lca_init.ecoinevnt_paths[matching_database], db_name=matching_database)
         ei.apply_strategies()
         ei.statistics()
         ei.write_database()
 
-    data = pd.read_excel(system_path, sheet_name=matching_database)
-    proj_database_str = data.columns[1]
-    if proj_database_str not in bd.databases:
-        import_excel_database_to_brightway(data, matching_database, path_github)
+    sheets_to_import = extract_excel_sheets()
 
-    # Reload databases if needed
-    if import_excel_database_to_brightway.has_been_called is False:
-        reload_database(matching_database, system_path, path_github, proj_database_str)
+    if sensitivty is False:
+        sheets_to_import = sheets_to_import[0]
+
+    data = pd.read_excel(lca_init.system_path, sheet_name=sheets_to_import)
+
+    import_db = is_db_in_project(sheets_to_import)
+
+    user_input = "n"
+
+    if import_db is False:
+        user_input = input("Do you want to reload the databases? [y/n] (y for yes and n for no)")
+
+    if isinstance(data, pd.DataFrame):
+        extract_database(data, user_input)
+    elif isinstance(data, dict):
+        for sheet, db in data.items():
+            import_excel_database_to_brightway.has_been_called = False
+            extract_database(db, user_input, sheet=sheet)
+    else:
+        print("Wrong data format")
 
 
 def remove_bio_co2_recipe():
@@ -244,7 +294,7 @@ def add_new_biosphere_activities(bw_project, path):
 
 
 
-def database_setup(path, matching_database, bw_project="Penicillin"):
+def database_setup(path, matching_database, bw_project="Penicillin", sensitivty=False):
     import_excel_database_to_brightway.has_been_called = False
 
     # Set the current Brightway project
@@ -259,10 +309,10 @@ def database_setup(path, matching_database, bw_project="Penicillin"):
         bi.bw2setup()
 
     if isinstance(matching_database, str):
-        import_databases(matching_database, path)
+        import_databases(sensitivty)
     elif isinstance(matching_database, list):
-        for db in matching_database:
-            import_databases(db, path)
+        for _ in matching_database:
+            import_databases(sensitivty)
 
     if reload_database.has_been_called is False:
         add_new_biosphere_activities(bw_project, path)

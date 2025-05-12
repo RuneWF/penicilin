@@ -12,7 +12,7 @@ import database_manipulation as dm
 
 class LCA():
     # initialization of all the required parameters
-    def __init__(self, path, matching_database, database_name, lcia_meth='recipe', bw_project="Penicillin"):
+    def __init__(self, path, matching_database, lcia_meth='recipe', bw_project="Penicillin"):
         """
         Initialize the LCA class with the given parameters.
         
@@ -25,14 +25,16 @@ class LCA():
         self.path = path
         self.path_github, self.ecoinevnt_paths, self.system_path = data_paths(self.path)
         self.matching_database = matching_database
-        self.database_name = database_name
+        self.bw_project = bw_project
+        bd.projects.set_current(self.bw_project)
+        
+        self.db_excel = pd.read_excel(self.system_path)
+        self.database_name = self.db_excel.columns[1]
         
         self.db = bd.Database(self.database_name)
         self.lcia_meth = lcia_meth
-        self.bw_project = bw_project
-        bd.projects.set_current(self.bw_project)
-        self.file_name = []
-        self.file_name_unique_process = []
+       
+
         self.data_info = []
         self.flow = []
 
@@ -55,15 +57,13 @@ class LCA():
 
         self.df_rearranged = pd.DataFrame()
 
-    def initialization(self):
+    def initialization(self, sensitivity=False):
         """
         Initialize the Brightway project and set up the database.
         
         :return: Tuple containing file information and initialization details
         """
-        # Set the current Brightway project
-        
-        dm.database_setup(self.path, self.matching_database)
+        dm.database_setup(self.path, self.matching_database, bw_project=self.bw_project, sensitivty=sensitivity)
         # dm.remove_bio_co2_recipe()
         # dm.add_new_biosphere_activities(self.bw_project, self.path)
 
@@ -72,7 +72,7 @@ class LCA():
         for act in self.db:
             temp = act['name']
             # Check if the flow is valid and add to the flow list
-            if "Defined daily dose" in temp:
+            if "defined system" in temp:
                 self.flow.append(temp)
         
         self.flow.sort()
@@ -101,9 +101,9 @@ class LCA():
         return self.all_methods
 
     # Function to initialize parameters for the LCIA calculations
-    def LCA_initialization(self):
+    def LCA_initialization(self, sensitivity=False):
         # Setting up an empty dictionary with the flows as the key
-        self.initialization()
+        self.initialization(sensitivity=sensitivity)
         procces_keys = {key: None for key in self.flow}
 
         size = len(self.flow)
@@ -148,7 +148,7 @@ class LCA():
                     self.func_unit[key].update({m[1]: m[0]})
         
         print(f'Initialization is completed for {self.database_name}')
-        return self.func_unit, self.lcia_impact_method()
+        return self.func_unit
 
     # Function to seperate the midpoint and endpoint results for ReCiPe
     def recipe_dataframe_split(self, df):
@@ -166,13 +166,12 @@ class LCA():
     def dataframe_element_scaling(self, df):
         # Creating a deep copy of the dataframe to avoid changing the original dataframe
         df_tot = dc(df)
-
         # Obating the sum of each process for each given LCIA category
         for col in range(df.shape[1]):  # Iterate over columns
             for row in range(df.shape[0]):  # Iterate over rows
                 tot = 0
-                for i in range(len(df.iloc[row,col])):
-                    tot += df.iloc[row,col][i][1]
+                for val in df.iloc[row,col].values():
+                    tot += val
                 df_tot.iloc[row,col] = tot
 
         df_cols = df_tot.columns
