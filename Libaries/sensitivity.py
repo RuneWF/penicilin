@@ -291,15 +291,15 @@ def sensitivity_plot(pen_stat_tot):
         leg = []
         for idx, (_, row) in enumerate(df.iterrows()):
             for c, val in enumerate(row):
-                ax.scatter(idx, val, color=colors[c], edgecolor="k", s=75)
+                ax.scatter(idx, val, color=colors[c], edgecolor="k", s=75, zorder=10)
             sensitivity_legend(col_sens, idx, leg)
                 
         x = np.arange(len(row.to_numpy()))
         ax.set_xticks(x)
         ax.set_xticklabels(df.index, rotation=0)
-        ax.set_ylabel('gram CO$_2$e/FU')
+        ax.set_ylabel('grams of CO$_2$-eq per FU')
         ax.set_title(f'Sensitivity analysis of manufacturing process - Penicillin {pen_type[-1]}')
-
+        ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
 
     ax.legend(
         leg,
@@ -307,7 +307,7 @@ def sensitivity_plot(pen_stat_tot):
         bbox_to_anchor=(0.99, 1.01),
         frameon=False
     )
-
+    ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
     plt.tight_layout()
     plt.savefig(output_file_sens, dpi=300, format='png', bbox_inches='tight')
     plt.show()
@@ -335,10 +335,11 @@ def monte_carlo_plot(stat_arr_dct, base=10, power=4):
         # Plot histogram
         plt.hist(samples, bins=40, color=colors[c], hatch=hatch_style[c], edgecolor="k", alpha=0.65, label=title_text(pen))
 
-    plt.xlabel('gram CO$_2$e/FU')
+    plt.xlabel('grams of CO$_2$-eq per FU')
     plt.ylabel('Frequency')
     plt.title('Monte Carlo simulation of the penicillin manufacturing')
     plt.legend(loc='upper right')
+    
     plt.tight_layout()
     plt.savefig(output_file_MC, dpi=300, format='png', bbox_inches='tight')
     plt.show()
@@ -644,7 +645,7 @@ def import_image_markers():
     return img_dct
 
 def x_y_axis_text(sorted_func_unit):
-    y_label = "gram CO$_2$-eq per FU"
+    y_label = "grams of CO$_2$-eq per FU"
 
     x_tick_label = []
     
@@ -691,6 +692,7 @@ def countries_penG_sens_plot(df, sorted_func_unit):
 
 def countries_penV_sens_plot(df, sorted_func_unit):
     figure_font_sizes()
+    output_file_countries_sens = r"C:\Users\ruw\Desktop\RA\penicilin\results\figures\penV_countries_sens.png"
     penV = df["Pen V"].to_dict()
 
     for key, val in penV.items():
@@ -722,6 +724,9 @@ def countries_penV_sens_plot(df, sorted_func_unit):
     ax.set_xticklabels(x_tick_label)
     ax.set_ylim(0, 50)
     plt.title("Penicillin V - Differet location of production site")
+
+    plt.tight_layout()
+    plt.savefig(output_file_countries_sens, dpi=300, format='png', bbox_inches='tight')
     plt.show()
 
 # Main function to perform sensitivity and uncertainty analysis
