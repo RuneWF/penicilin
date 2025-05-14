@@ -163,6 +163,9 @@ def remove_bio_co2_recipe():
             recipe_no_bio_CO2 = []  # Temporary storage for filtered CFs
             # Ensuring that the method only will be handled once
             if metod[1] not in check.keys():
+                method_unit = bw.Method(metod)
+                unit = method_unit.metadata.get('unit', 'No unit found')
+                
                 check[metod[1]] = None
                 method = bw.Method(metod)
                 cf_data = method.load()
@@ -179,6 +182,7 @@ def remove_bio_co2_recipe():
                 new_metod = (metod[0] + ' - no biogenic', metod[1], metod[2])
                 new_method_key = new_metod
                 new_method = bw.Method(new_method_key)
+                new_method.metadata['unit'] = unit
                 new_method.register()
                 new_method.write(recipe_no_bio_CO2)
 

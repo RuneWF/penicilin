@@ -3,6 +3,7 @@ import numpy as np
 from copy import deepcopy as dc
 import re
 import bw2data as bd
+import brightway2 as bw
 
 
 # import life_cycle_assessment as lc
@@ -16,19 +17,65 @@ matching_database = "ev391cutoff"
 
 lca_init = LCA(path=path,matching_database=matching_database)
 
-def save_totals_to_excel(method, df):
-   
+def endpoint_new_name():
+    endpoints_new_name = [
+            "Ecosystem damage",
+            "Human health damage",
+            "Natural resources damage"
+        ]
+    
+    return endpoints_new_name
+
+def obtain_impact_category_units():
+    endpoints_new_name = endpoint_new_name()
+    impact_cat_unit_dct = {}
+    end_counter = 0
+    for m in bw.methods:
+        if 'ReCiPe 2016 v1.03, midpoint (H) - no biogenic' in str(m) and 'no LT' not in str(m):
+            method = bw.Method(m)
+            unit = method.metadata.get('unit', 'No unit found')
+            impact_cat_unit_dct[str(m[2]).capitalize()] = unit
+            # print(f"Method: {m[2]}, Unit: {unit}")
+        elif 'ReCiPe 2016 v1.03, endpoint (H) - no biogenic' in str(m) and 'no LT' not in str(m):
+            method = bw.Method(m)
+            unit = method.metadata.get('unit', 'No unit found')
+            
+
+            impact_cat_unit_dct[endpoints_new_name[end_counter]] = unit
+            end_counter += 1
+            
+    return impact_cat_unit_dct
+
+def organize_dataframe_index(df):
     df_tot, _ = lca_init.dataframe_element_scaling(df)
     df_tot_T = df_tot.T
+    ic_idx_lst = []
+    for i in lca_init.lcia_impact_method():
+        ic_idx_lst.append(str(i[2]).capitalize())
 
-    method_updated = []
+    endpoints_new_name = endpoint_new_name()
 
-    for m in method:
-        method_updated.append(m[1:])
+    for end in endpoints_new_name:
+        for x, iil in enumerate(ic_idx_lst):
+            iil = iil.replace(" quality", "")
+            if iil.lower() in end.lower():
+                ic_idx_lst[x] = end
 
-    df_tot_T.index = method_updated
+    df_tot_T.index = ic_idx_lst
+    
+    return df_tot_T
 
-    file_path_tot = r"C:\Users\ruw\Desktop\RA\penicilin\results\LCIA\penincillium_totals.xlsx"
+
+
+def save_totals_to_excel(df):
+   
+    impact_cat_unit_dct = obtain_impact_category_units()
+    df_tot_T = organize_dataframe_index(df)
+
+    for idx in df_tot_T.index:
+        df_tot_T.at[idx,"Unit"] = impact_cat_unit_dct[idx]
+
+    file_path_tot = rf"{lca_init.path_github}\results\LCIA\penincillium_totals.xlsx"
 
     save_LCIA_results(df_tot_T, file_path_tot, "totals")
 
@@ -38,6 +85,7 @@ def data_set_up(sheet_name="penicillin"):
 
     # Perform quick LCIA (Life Cycle Impact Assessment) and get the results
     df = lr.quick_LCIA(sheet_name)
+    save_totals_to_excel(df)
 
     # Process the data
     df_res = lca_init.dataframe_results_handling(df)

@@ -11,7 +11,6 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import matplotlib.image as mpimg
 import seaborn as sns
 
-
 import standards as s
 import database_manipulation as dm
 
@@ -300,6 +299,8 @@ def sensitivity_plot(pen_stat_tot):
         ax.set_ylabel('grams of CO$_2$-eq per FU')
         ax.set_title(f'Sensitivity analysis of manufacturing process - Penicillin {pen_type[-1]}')
         ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
+    # Retrieve the legend handles and labels
+
 
     ax.legend(
         leg,
@@ -307,7 +308,6 @@ def sensitivity_plot(pen_stat_tot):
         bbox_to_anchor=(0.99, 1.01),
         frameon=False
     )
-    ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
     plt.tight_layout()
     plt.savefig(output_file_sens, dpi=300, format='png', bbox_inches='tight')
     plt.show()
@@ -321,7 +321,7 @@ def monte_carlo_plot(stat_arr_dct, base=10, power=4):
     data_proccessing_dct_sorted = sort_dict_keys(data_proccessing_dct)
 
     num_samples = pow(base, power)  # Number of samples you want to generate
-    plt.figure(figsize=(10, 5))
+    plt.figure(figsize=(9, 5))
     hatch_style = ["oo", "////"]
 
     arr_lst = []
@@ -338,15 +338,17 @@ def monte_carlo_plot(stat_arr_dct, base=10, power=4):
     plt.xlabel('grams of CO$_2$-eq per FU')
     plt.ylabel('Frequency')
     plt.title('Monte Carlo simulation of the penicillin manufacturing')
-    plt.legend(loc='upper right')
+    plt.legend(loc='upper right', frameon=False)
     
     plt.tight_layout()
     plt.savefig(output_file_MC, dpi=300, format='png', bbox_inches='tight')
     plt.show()
 
     # Perform t-test to compare distributions
+    # print(f"length of arr_lst : {len(arr_lst)}")
     data1 = arr_lst[0]
     data2 = arr_lst[1]
+    print(f"type of arr_lst : {type(arr_lst[0])}")
     t_stat, p_value = stats.ttest_ind(data1, data2)
     print(f"T-statistic: {t_stat}, P-value: {p_value}")
 
@@ -404,17 +406,15 @@ def contribution(contr_excel_path):
 
     return df_contr_share
 
-def contribution_LCIA_calc():
+def contribution_LCIA_calc(calc):
     contr_excel_path = s.join_path(folder(), "penG_contribution.xlsx")
     if os.path.isfile(contr_excel_path):
-        user_input = input("Select y for recalculate or n to import calculated results")
-        if "y" in user_input.lower():
+        # user_input = input("Select y for recalculate or n to import calculated results")
+        if calc:
             df_contr_share = contribution(contr_excel_path)
-        elif "n" in user_input.lower():
-            df_contr_share = s.import_LCIA_results(contr_excel_path, lca_init.lcia_impact_method())
         else:
-            print("Select either y or n")
-            contribution_LCIA_calc()
+            df_contr_share = s.import_LCIA_results(contr_excel_path, lca_init.lcia_impact_method())
+ 
     else:
         df_contr_share = contribution(contr_excel_path)
 
@@ -434,7 +434,7 @@ def act_to_string_simplification(text):
         text = "incineration"
     if "packaging paper" in text.lower():
         text = "packaging paper"
-    if "iv" in text.lower():
+    if "set" in text.lower():
         text = "IV set"
     if "stopcock" in text.lower():
         text = "stopcock"
@@ -449,7 +449,23 @@ def act_to_string_simplification(text):
 
     return text
 
-def contribution_analysis_data_sorting():
+def data_reorginization(df_contr_share):
+    iv_liquid_row = 0
+    new_idx = "IV liquid"
+
+    for idx, row in df_contr_share.iterrows():
+        if "market" in str(idx):
+            iv_liquid_row += row
+            df_contr_share.drop([idx], inplace=True)
+
+    df_contr_share.loc[new_idx] = iv_liquid_row # adding a row
+    # df_contr_share.index = df_contr_share.index + new_idx # shifting index
+
+    # iv_liquid_row.to_dict()
+    
+    return df_contr_share
+
+def contribution_analysis_data_sorting(calc):
     pen_comp_cat = {
         "Manufacturing": ["penicil", "vial"],
         "Auxilary product": ["wipe", "glove"],
@@ -460,7 +476,8 @@ def contribution_analysis_data_sorting():
     pen_cat_sorted = {}
     leg_txt = []
 
-    df_contr_share = contribution_LCIA_calc()
+    df_contr_share = contribution_LCIA_calc(calc)
+    df_contr_share = data_reorginization(df_contr_share)
 
     for cat, id_lst in pen_comp_cat.items():
         pen_cat_sorted[cat] = []
@@ -481,11 +498,11 @@ def lcia_categories():
 
     return ic_plt
 
-def contribution_results_to_dct():
+def contribution_results_to_dct(calc):
     dct = {}
     dct_tot = {}
     ic_plt = lcia_categories()
-    df_contr_share, pen_cat_sorted, leg_txt = contribution_analysis_data_sorting()
+    df_contr_share, pen_cat_sorted, leg_txt = contribution_analysis_data_sorting(calc)
     for ic in ic_plt:
         dct[ic] = {}
         dct_tot[ic] = {}
@@ -510,12 +527,12 @@ def text_for_x_axis():
 def hatch_styles():
     return ["\\\\", "OO", "++", "**", "O."]
 
-def penG_contribution_plot():
+def penG_contribution_plot(calc):
     figure_font_sizes()
     output_file_contr = r"C:\Users\ruw\Desktop\RA\penicilin\results\figures\penG_contribution.png"
     width = 0.5
-    _, ax = plt.subplots(figsize=(9, 5))
-    dct, leg_txt = contribution_results_to_dct()
+    fig, ax = plt.subplots(figsize=(9, 5))
+    dct, leg_txt = contribution_results_to_dct(calc)
     bottom = np.zeros(len(dct.keys()))
 
     colors = s.color_range(colorname="coolwarm", color_quantity=len(dct.keys()))
@@ -523,7 +540,7 @@ def penG_contribution_plot():
     for idx, dct_ in enumerate(dct.values()):
         for col_idx, item_dct in enumerate(dct_.values()):
             for hatch, (act, item) in enumerate(item_dct.items()):
-                p = ax.bar(
+                ax.bar(
                     text_for_x_axis()[idx], 
                     item, 
                     width, 
@@ -536,12 +553,19 @@ def penG_contribution_plot():
                     zorder=10
                 )
 
-                
                 bottom[idx] += item
 
-
     ax.set_title("Contribution analysis for Penicillin G")
+
+    leg_color, _ = fig.gca().get_legend_handles_labels()
+    
+    # Reverse the order of handles and labels
+    leg_txt = leg_txt[::-1]
+    leg_color = leg_color[::-1]
+
+
     ax.legend(
+            leg_color,
             leg_txt,
             loc='upper left',
             bbox_to_anchor=(0.995, 1),
@@ -550,7 +574,7 @@ def penG_contribution_plot():
             frameon=False
         )
     ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
-
+    ax.set_ylabel("Share of the impact")
     plt.tight_layout()
     plt.savefig(output_file_contr, dpi=300, format='png', bbox_inches='tight')
     plt.show()
@@ -615,20 +639,16 @@ def countries_calc(excel_path):
 
     return df.T, sorted_func_unit
 
-def countries_LCIA_sens_calc():
+def countries_LCIA_sens_calc(calc):
     # Set up and perform the LCA calculation
     excel_path = s.join_path(folder(), "countries_sensitvity.xlsx")
 
     if os.path.isfile(excel_path):
-        user_input = input("Select y for recalculate or n to import calculated results")
-        if "y" in user_input.lower():
+        if calc:
             df_sens, sorted_func_unit = countries_calc(excel_path)
-        elif "n" in user_input.lower():
+        else:
             df_sens = s.import_LCIA_results(excel_path, lca_init.lcia_impact_method())
             sorted_func_unit = sort_countries_func_unit()
-        else:
-            print("Select either y or n")
-            countries_LCIA_sens_calc()
     else:
         df_sens, sorted_func_unit = countries_calc(excel_path)
 
@@ -738,9 +758,9 @@ def perform_sens_uncert_analysis(mc_base=10, mc_power=4, calc=False):
     stat_arr_dct, pen_stat_tot = calc_senstivity_values(pen_compact_df, pen_compact_idx, tot_df)
     sensitivity_plot(pen_stat_tot)
     monte_carlo_plot(stat_arr_dct, mc_base, mc_power)
-    penG_contribution_plot()
+    penG_contribution_plot(calc)
 
-    df_sens, sorted_func_unit = countries_LCIA_sens_calc()
+    df_sens, sorted_func_unit = countries_LCIA_sens_calc(calc)
 
     countries_penG_sens_plot(df_sens, sorted_func_unit)
     countries_penV_sens_plot(df_sens, sorted_func_unit)
