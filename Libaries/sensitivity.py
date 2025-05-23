@@ -13,6 +13,8 @@ import seaborn as sns
 
 import standards as s
 import database_manipulation as dm
+import sensitvity_countries as stc
+import sensitivity_EoL as eol
 
 from lca import LCA
 
@@ -76,7 +78,7 @@ def obtain_activities():
 
 # Function to create and return the results folder path
 def folder():
-    sens_folder = rf"{lca_init.path_github}\results"
+    sens_folder = rf"{lca_init.results_path}\results"
     save_dir = s.results_folder(sens_folder, "sensitivity")
     return save_dir
 
@@ -274,17 +276,22 @@ def sensitivity_legend(col_sens, idx, leg):
 
 # Function to plot sensitivity analysis results
 def sensitivity_plot(pen_stat_tot):
-    figure_font_sizes()
+     
     colors = s.color_range(colorname="coolwarm", color_quantity=5)
     colors.reverse()
 
-    output_file_sens = r"C:\Users\ruw\Desktop\RA\penicilin\results\figures\senstivity.png"
+    output_file_sens = rf"{lca_init.path_github}\figures\senstivity.png"
 
     col_sens, _ = organize_sensitivity_scenarios()
     pen_stat_tot_sorted = sort_dict_keys(pen_stat_tot)
 
     _, axes = plt.subplots(1, len(pen_stat_tot_sorted), figsize=(15, 6))
-
+    plt.rcParams.update({
+        'font.size': 12,      # General font size
+        'axes.titlesize': 16, # Title font size
+        'axes.labelsize': 14, # Axis labels font size
+        'legend.fontsize': 12 # Legend font size
+    })
     for fplc, (pen_type, df) in enumerate(pen_stat_tot_sorted.items()):
         ax = axes[fplc]
         leg = []
@@ -297,7 +304,10 @@ def sensitivity_plot(pen_stat_tot):
         ax.set_xticks(x)
         ax.set_xticklabels(df.index, rotation=0)
         ax.set_ylabel('grams of CO$_2$-eq per FU')
-        ax.set_title(f'Sensitivity analysis of manufacturing process - Penicillin {pen_type[-1]}')
+        ax.set_title(f'Manufacturing of penicillin {pen_type[-1]}')
+        if pen_type[-1] == V:
+            x = np.arange(30, 42, 2)
+            ax.set_yticks(y)
         ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
     # Retrieve the legend handles and labels
 
@@ -316,7 +326,7 @@ def sensitivity_plot(pen_stat_tot):
 def monte_carlo_plot(stat_arr_dct, base=10, power=4):
     figure_font_sizes()
     
-    output_file_MC = r"C:\Users\ruw\Desktop\RA\penicilin\results\figures\monte_carlo.png"
+    output_file_MC = rf"{lca_init.path_github}\figures\monte_carlo.png"
     data_proccessing_dct = calc_mean_std(stat_arr_dct)
     data_proccessing_dct_sorted = sort_dict_keys(data_proccessing_dct)
 
@@ -325,6 +335,7 @@ def monte_carlo_plot(stat_arr_dct, base=10, power=4):
     hatch_style = ["oo", "////"]
 
     arr_lst = []
+    pen_label = ["G", "V"]
     colors = s.color_range(colorname="coolwarm", color_quantity=len(hatch_style))
     for c, (pen, dct) in enumerate(data_proccessing_dct_sorted.items()):
         mean = dct["Mean"]
@@ -333,13 +344,18 @@ def monte_carlo_plot(stat_arr_dct, base=10, power=4):
         samples = np.random.normal(loc=mean, scale=std_dev, size=num_samples)
         arr_lst.append(samples)
         # Plot histogram
-        plt.hist(samples, bins=40, color=colors[c], hatch=hatch_style[c], edgecolor="k", alpha=0.65, label=title_text(pen))
+        plt.hist(samples, bins=40, density=True, alpha=0.6, color=colors[c], edgecolor='black', label=f"Penicillin {pen_label[c]}")
 
     plt.xlabel('grams of CO$_2$-eq per FU')
-    plt.ylabel('Frequency')
+    plt.ylabel('Probability')
     plt.title('Monte Carlo simulation of the penicillin manufacturing')
     plt.legend(loc='upper right', frameon=False)
     
+    ax = plt.gca()
+    y_ticks = ax.get_yticks()
+    ax.set_yticks(y_ticks)
+    ax.set_yticklabels(['{:.0f}%'.format(y * 100) for y in y_ticks])
+
     plt.tight_layout()
     plt.savefig(output_file_MC, dpi=300, format='png', bbox_inches='tight')
     plt.show()
@@ -348,7 +364,6 @@ def monte_carlo_plot(stat_arr_dct, base=10, power=4):
     # print(f"length of arr_lst : {len(arr_lst)}")
     data1 = arr_lst[0]
     data2 = arr_lst[1]
-    print(f"type of arr_lst : {type(arr_lst[0])}")
     t_stat, p_value = stats.ttest_ind(data1, data2)
     print(f"T-statistic: {t_stat}, P-value: {p_value}")
 
@@ -359,9 +374,6 @@ def extract_penG_actvitites():
     fu_sep = []
     for key, item in fu_all.items():
         fu_sep.append({key : item})
-    fu_sep
-
-    fu_all = data["Penicillin G, defined system"]
 
     fu_sep = []
     idx_lst = []
@@ -376,12 +388,27 @@ def extract_penG_actvitites():
             for act in lca_init.db:
                 if "penicillium G" in str(act):
                     fu_sep.append({act : scaling_dct["manufacturing of raw penicillium G"]})
-                    idx_lst.append(act)
+                    idx_lst.append(str(act))
         else:
             fu_sep.append({key : item})
-            idx_lst.append(key)
+            idx_lst.append(str(key))
 
     return fu_sep, idx_lst
+
+def substract_penGprod(df_contr):
+    penG_idx = None
+    vial_idx = None
+
+    for idx in df_contr.index:
+        if "'packaging of glass vials with penicillin G' (unit, IN, None)" in str(idx):
+            vial_idx = idx
+        elif "'manufacturing of raw penicillium G' (kilogram, IN, None)" in str(idx):
+            penG_idx = idx
+
+    for col in df_contr.columns:
+        df_contr.at[vial_idx, col] = df_contr.at[vial_idx, col] - df_contr.at[penG_idx, col]
+    
+    return df_contr
 
 def contribution(contr_excel_path):
     fu_sep, idx_lst = extract_penG_actvitites()
@@ -395,8 +422,11 @@ def contribution(contr_excel_path):
     for col, arr in enumerate(res):
         for row, val in enumerate(arr):
             df_contr.iat[col, row] = val
-            
+    
+    df_contr = substract_penGprod(df_contr)
+
     df_contr_share = dc(df_contr)
+
     for col in df_contr_share.columns:
         tot = df_contr_share[col].to_numpy().sum()
         for _, row in df_contr_share.iterrows():
@@ -452,18 +482,22 @@ def act_to_string_simplification(text):
 def data_reorginization(df_contr_share):
     iv_liquid_row = 0
     new_idx = "IV liquid"
+    df_temp = dc(df_contr_share)
+    
+    for idx, row in df_temp.iterrows():
+        try:
+            if "market" in str(idx):
+                iv_liquid_row += row
+                df_temp.drop([idx], inplace=True)
+        except IndexError:
+            print(f"keyerror for {idx}")
 
-    for idx, row in df_contr_share.iterrows():
-        if "market" in str(idx):
-            iv_liquid_row += row
-            df_contr_share.drop([idx], inplace=True)
-
-    df_contr_share.loc[new_idx] = iv_liquid_row # adding a row
+    df_temp.loc[new_idx] = iv_liquid_row # adding a row
     # df_contr_share.index = df_contr_share.index + new_idx # shifting index
 
     # iv_liquid_row.to_dict()
     
-    return df_contr_share
+    return df_temp
 
 def contribution_analysis_data_sorting(calc):
     pen_comp_cat = {
@@ -476,8 +510,8 @@ def contribution_analysis_data_sorting(calc):
     pen_cat_sorted = {}
     leg_txt = []
 
-    df_contr_share = contribution_LCIA_calc(calc)
-    df_contr_share = data_reorginization(df_contr_share)
+    df_contr_share_raw = contribution_LCIA_calc(calc)
+    df_contr_share = data_reorginization(df_contr_share_raw)
 
     for cat, id_lst in pen_comp_cat.items():
         pen_cat_sorted[cat] = []
@@ -529,7 +563,7 @@ def hatch_styles():
 
 def penG_contribution_plot(calc):
     figure_font_sizes()
-    output_file_contr = r"C:\Users\ruw\Desktop\RA\penicilin\results\figures\penG_contribution.png"
+    output_file_contr = r"C:\Users\ruw\Desktop\RA\penicilin\figures\penG_contribution.png"
     width = 0.5
     fig, ax = plt.subplots(figsize=(9, 5))
     dct, leg_txt = contribution_results_to_dct(calc)
@@ -676,7 +710,7 @@ def x_y_axis_text(sorted_func_unit):
 
 def countries_penG_sens_plot(df, sorted_func_unit):
     figure_font_sizes()
-    output_file_countries_sens = r"C:\Users\ruw\Desktop\RA\penicilin\results\figures\penG_countries_sens.png"
+    output_file_countries_sens = r"C:\Users\ruw\Desktop\RA\penicilin\figures\penG_countries_sens.png"
     
     penG = df["Pen G"].to_dict()
 
@@ -712,7 +746,7 @@ def countries_penG_sens_plot(df, sorted_func_unit):
 
 def countries_penV_sens_plot(df, sorted_func_unit):
     figure_font_sizes()
-    output_file_countries_sens = r"C:\Users\ruw\Desktop\RA\penicilin\results\figures\penV_countries_sens.png"
+    output_file_countries_sens = r"C:\Users\ruw\Desktop\RA\penicilin\figures\penV_countries_sens.png"
     penV = df["Pen V"].to_dict()
 
     for key, val in penV.items():
@@ -757,11 +791,15 @@ def perform_sens_uncert_analysis(mc_base=10, mc_power=4, calc=False):
     pen_compact_df, tot_df, pen_compact_idx = compacting_penicillium_dataframes(pen_df)
     stat_arr_dct, pen_stat_tot = calc_senstivity_values(pen_compact_df, pen_compact_idx, tot_df)
     sensitivity_plot(pen_stat_tot)
-    monte_carlo_plot(stat_arr_dct, mc_base, mc_power)
-    penG_contribution_plot(calc)
+    # monte_carlo_plot(stat_arr_dct, mc_base, mc_power)
+    # penG_contribution_plot(calc)
 
-    df_sens, sorted_func_unit = countries_LCIA_sens_calc(calc)
+    # df_sens, sorted_func_unit = countries_LCIA_sens_calc(calc)
 
-    countries_penG_sens_plot(df_sens, sorted_func_unit)
-    countries_penV_sens_plot(df_sens, sorted_func_unit)
+    # countries_penG_sens_plot(df_sens, sorted_func_unit)
+    # countries_penV_sens_plot(df_sens, sorted_func_unit)
+
+    # stc.countries_sens_plot(calc)
+    # eol.sens_EoL_plot(calc)
+
 

@@ -23,7 +23,7 @@ class LCA():
         :param bw_project: Brightway project name (default is 'Penicillin')
         """
         self.path = path
-        self.path_github, self.ecoinevnt_paths, self.system_path = data_paths(self.path)
+        self.path_github, self.ecoinevnt_paths, self.system_path, self.results_path = data_paths(self.path)
         self.matching_database = matching_database
         self.bw_project = bw_project
         bd.projects.set_current(self.bw_project)
@@ -39,7 +39,7 @@ class LCA():
         self.flow = []
 
         # Store the flow and other information in the respective dictionaries
-        self.dir_temp = results_folder(join_path(self.path_github, 'results'), "LCIA")
+        self.dir_temp = results_folder(self.results_path, "LCIA")
         self.file_name = join_path(self.dir_temp, "LCIA_results.xlsx")
         self.file_name_unique_process = join_path(self.dir_temp, "LCIA_results_unique.xlsx")
 

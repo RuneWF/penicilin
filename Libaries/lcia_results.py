@@ -1,7 +1,6 @@
 import bw2data as bd
 import bw2calc as bc
 import pandas as pd
-import copy
 
 # Importing self-made libraries
 from standards import *

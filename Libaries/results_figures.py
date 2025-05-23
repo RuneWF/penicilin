@@ -65,8 +65,6 @@ def organize_dataframe_index(df):
     
     return df_tot_T
 
-
-
 def save_totals_to_excel(df):
    
     impact_cat_unit_dct = obtain_impact_category_units()
@@ -75,7 +73,7 @@ def save_totals_to_excel(df):
     for idx in df_tot_T.index:
         df_tot_T.at[idx,"Unit"] = impact_cat_unit_dct[idx]
 
-    file_path_tot = rf"{lca_init.path_github}\results\LCIA\penincillium_totals.xlsx"
+    file_path_tot = rf"{lca_init.results_path}\LCIA\penincillium_totals.xlsx"
 
     save_LCIA_results(df_tot_T, file_path_tot, "totals")
 
@@ -111,7 +109,6 @@ def plot_text_size():
     'axes.labelsize': 12, # Axis labels font size
     'legend.fontsize': 10 # Legend font size
     }) 
-
 
 def mid_end_legend_text(df):
     leg_idx = []
@@ -164,7 +161,10 @@ def midpoint_graph(df, recipe, plot_x_axis, folder):
     ax.set_xticks(index + bar_width * (len(index_list) - 1) / 2)
     ax.set_xticklabels(plot_x_axis, rotation=90)  # Added rotation here
     ax.set_yticks(np.arange(0, 1 + 0.001, step=0.1))
-
+    
+    y_ticks = plt.gca().get_yticks()
+    ax.set_yticks(y_ticks)
+    ax.set_yticklabels(['{:.0f}%'.format(y * 100) for y in y_ticks])
     x_pos = 0.94
 
     fig.legend(
@@ -178,8 +178,8 @@ def midpoint_graph(df, recipe, plot_x_axis, folder):
     ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
     # Save the plot with high resolution
     output_file = join_path(
-        folder,
-        f'{recipe}.png'
+        lca_init.path_github,
+        f'figures\{recipe}.png'
     )
     plt.tight_layout()
     plt.savefig(output_file, dpi=300, format='png', bbox_inches='tight')
@@ -237,7 +237,7 @@ def endpoint_graph(df, recipe, plot_x_axis_end, folder):
     ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
     # Save the plot with high resolution
     output_file = join_path(
-        folder,
+        lca_init.path_github,
         f'{recipe}.png'
     )
     plt.tight_layout()
@@ -249,8 +249,7 @@ def create_results_figures():
     bw_project = lca_init.bw_project
     bd.projects.set_current(bw_project)
 
-    path_github = lca_init.path_github
-    folder = results_folder(join_path(path_github,'results'), "figures")
+    folder = results_folder(lca_init.path_github, "figures")
 
     impact_categories = lca_init.lcia_impact_method()
     plot_x_axis_all = [0] * len(impact_categories)
@@ -280,6 +279,6 @@ def create_results_figures():
     data = data_set_up()
     
     midpoint_graph(data[0], 'recipe', plot_x_axis_mid, folder)
-    endpoint_graph(data[1], 'recipe', plot_x_axis_end, folder)
+    # endpoint_graph(data[1], 'recipe', plot_x_axis_end, folder)
 
     return data

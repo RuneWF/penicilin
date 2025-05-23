@@ -39,8 +39,9 @@ def data_paths(path):
     
     database_path = join_path(main_folder_path, r'data\database.xlsx')
 
+    results_path = join_path(path, r'RA\penicillin results')
     
-    return main_folder_path, ecoinevnt_paths, database_path
+    return main_folder_path, ecoinevnt_paths, database_path, results_path
 
 # saving the LCIA results to excel
 def save_LCIA_results(df, file_name, sheet_name):
