@@ -97,7 +97,6 @@ def initialize_func_unit_keys(pen_type):
         for act in db:
             if f"Penicillin {pt}" in str(act['name']) and "defined system" in str(act['name']):
                 func_unit[act['name']] = {}
-                print(act['name'])
     
     return func_unit
 
@@ -272,53 +271,55 @@ def figure_font_sizes():
 
 def countries_sens_plot(calc=False):
     width = 0.5
-    figure_font_sizes()
+    
     func_unit, elec_val_G, elec_val_V = create_func_unit()
     
     df_res_dct = results_sorting(func_unit, elec_val_V, elec_val_G, calc)
-
+    title_identifier = [r"$\bf{Fig\ A:}$ ", r"$\bf{Fig\ B:}$ "]
     plot_save_path = s.join_path(lca_init.path_github, r"figures")
-
+    width_in, height_in, dpi = s.plot_dimensions(subfigure=True)
+    fig, axes = plt.subplots(1, len(df_res_dct.keys()), figsize=(width_in*1.9, height_in), dpi=dpi)
     for p, (pen, df) in enumerate(df_res_dct.items()):
         colors = s.color_range(colorname="coolwarm", color_quantity=len(df.index))
-        fig, ax = plt.subplots(figsize=(9, 5))
         df.T.plot(
             kind='bar',
             stacked=True,
-            title=pen,
+            title="",
             color=colors,
-            ax=ax,
+            ax=axes[p],
             width=width,
             edgecolor="k",
             zorder=10
         )
 
-        leg_color, _ = fig.gca().get_legend_handles_labels()
-        leg_txt = list(df.index)
-            
-        # Reverse the order of handles and labels
-        leg_txt = leg_txt[::-1]
-        leg_color = leg_color[::-1]
-        
-        ax.legend(
-                leg_color,
-                leg_txt,
-                loc='upper left',
-                bbox_to_anchor=(0.995, 1),
-                ncol= 1,  # Adactjust the number of columns based on legend size
-                fontsize=10,
-                frameon=False
-            )
-        ax.set_title(f"Global Warming Potential for 1 treatment of penicillin {pen_type[p]}")
-        ax.set_ylabel('kilograms of CO$_2$-eq per treatment')
+        axes[p].set_title(f"{title_identifier[p]}GWP for 1 treatment with penicillin {pen_type[p]}", loc="left")
+        axes[p].set_ylabel('kilograms of CO$_2$-eq per treatment')
 
         xtick_txt = []
         for col in df.columns:
             xtick_txt.append(col[-2:])
 
-        ax.set_xticklabels(xtick_txt, rotation=0)
-        ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
-        plt.tight_layout()
-        output_file = s.join_path(plot_save_path, f"pen{pen_type[p]}_countries_sens.png")
-        plt.savefig(output_file, dpi=300, format='png', bbox_inches='tight')
-        plt.show()
+        axes[p].set_xticklabels(xtick_txt, rotation=0)
+        axes[p].grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
+        # Only show legend for the second figure (p == 1)
+        if p == 1:
+            leg_color, _ = fig.gca().get_legend_handles_labels()
+            leg_txt = list(df.index)
+            leg_txt = leg_txt[::-1]
+            leg_color = leg_color[::-1]
+            axes[p].legend(
+                leg_color,
+                leg_txt,
+                loc='upper left',
+                bbox_to_anchor=(0.995, 1.02),
+                ncol=1,
+                fontsize=10,
+                frameon=False
+            )
+        else:
+            axes[p].get_legend().remove()
+    
+    plt.tight_layout()
+    output_file = s.join_path(plot_save_path, f"pen{pen_type[p]}_countries_sens.png")
+    plt.savefig(output_file, dpi=dpi, format='png', bbox_inches='tight')
+    plt.show()

@@ -1,5 +1,4 @@
-import standards as s
-
+import numpy as np
 
 import bw2data as bd
 import bw2calc as bc
@@ -23,7 +22,7 @@ def obtain_func_unit():
         if "Penicillin G," in act["name"]:
             func_unit_recycling[act["name"]] = []
             for exc in act.exchanges():
-                if "incineration" in exc["name"] or "recycled" in exc["name"]:
+                if "incineration" in exc["name"] or "recycling" in exc["name"] or "avoided" in exc["name"]:
                     func_unit_recycling[act["name"]].append({exc.input : exc["amount"]})
                 elif "Penicillin G," in exc["name"]:
                     func_unit_recycling[act["name"]].append({exc.input : exc["amount"]})
@@ -76,8 +75,9 @@ def obtain_results(calc):
         idx_lst = [
         "Other",
         "Incineration",
-        "Recycled"
-    ]
+        "Recycling",
+        "Avoided"
+        ]
 
         df = pd.DataFrame(0, index=idx_lst, columns=res_countries_dct.keys(), dtype=object)
 
@@ -90,17 +90,30 @@ def obtain_results(calc):
                         # print(idx, act)
                         # else:
                         #     print(idx, key)
-                    elif "Penicillin G" in str(act) and idx_lst[-1] not in idx:
+                    elif "Penicillin G" in str(act) and idx_lst[0] in idx:
                         row[scenario] = val
                     # else:
                     #     row[scenario] = val
 
-        
+        df.index = [
+        "Cradle to Hospital",
+        "Incineration",
+        "Recycling",
+        "Avoided",
+        ]
 
         s.save_LCIA_results(df,file_name=excel_path, sheet_name="EoL")
     else:
         df = s.import_LCIA_results(excel_path, list(func_unit.keys()))
+        df.index = [
+            "Cradle to Hospital",
+            "Incineration",
+            "Recycling",
+            "Avoided",
+        ]
     
+       
+
     return df
 
 # Function to set font sizes for plots
@@ -112,35 +125,73 @@ def figure_font_sizes():
         'legend.fontsize': 10 # Legend font size
     }) 
 
-def sens_EoL_plot(calc=False):
-    width = 0.5
-    figure_font_sizes()
-    plot_save_path = s.join_path(lca_init.path_github, r"results\figures")
+def legend_set_up(df, fig, ax, xtick_txt):
+    tot_impact = {col : df[col].to_numpy().sum() for col in df.columns} 
 
-    df = obtain_results(calc)
+    for scenario, total in enumerate(tot_impact.values()):
+        ax.plot(xtick_txt[scenario], total, 'D', color="k", markersize=4, mec='k', label='Net impact', zorder=9)
+        # Add the data value
+        ax.text(
+            xtick_txt[scenario], total-0.08, f"{total:.2f}", 
+            ha='center', va='bottom', fontsize=11, 
+            color="k", zorder=11)
 
-    colors = s.color_range(colorname="coolwarm", color_quantity=len(df.index))
-    fig, ax = plt.subplots(figsize=(9, 5))
-    df.T.plot(
-        kind='bar',
-        stacked=True,
-        title="Global Warming Potential for different EoL for auxillary product for peniciilin G",
-        color=colors,
-        ax=ax,
-        width=width,
-        edgecolor="k",
-        zorder=10
+    # Custom legend with 'Total' included
+    handles, _ = ax.get_legend_handles_labels()
+    handles.append(
+        plt.Line2D([0], [0], marker='D', color='k', markerfacecolor="k", mec='k', markersize=4, label='Net impact')
     )
 
     leg_color, _ = fig.gca().get_legend_handles_labels()
     leg_txt = list(df.index)
-    # if "V" in pen_type[p]:
-    #     leg_txt.pop(-2)
-    #     leg_color.pop(-2)
-        
+
     # Reverse the order of handles and labels
+    leg_txt.append("Net impact")
     leg_txt = leg_txt[::-1]
+
+
+    leg_color.append(plt.Line2D([0], [0], marker='D', color='w', markerfacecolor="k", mec='k', markersize=4, label='Net impact'))
     leg_color = leg_color[::-1]
+
+    arr = np.array(list(tot_impact.values()))
+
+    baseline = arr[0]
+    scenarios = arr[1:]
+
+
+    min_reduction = scenarios.max()/baseline
+    max_reduction = scenarios.min()/baseline
+
+    print(f"Min reduction : {round(min_reduction*100,2)}%")
+    print(f"Max reduction : {round(max_reduction*100,2)}%")
+
+    return leg_txt, leg_color
+
+def sens_EoL_plot(calc=False):
+    width = 0.5
+    df = obtain_results(calc)
+    colors = s.color_range(colorname="coolwarm", color_quantity=len(df.index))
+    width_in, height_in, dpi = s.plot_dimensions()
+    fig, ax = plt.subplots(figsize=(width_in, height_in), dpi=dpi)
+    df.T.plot(
+        kind='bar',
+        stacked=True,
+        title="GWP for different EoL for auxillary product for peniciilin G",
+        color=colors,
+        ax=ax,
+        width=width,
+        edgecolor="k",
+        zorder=5
+    )
+
+    xtick_txt = [
+        "Baseline",
+        "Recycling IV\n+ gloves",
+        "Recycling IV",
+        "Recycling \ngloves",
+    ]
+
+    leg_txt, leg_color = legend_set_up(df, fig, ax, xtick_txt)
 
     ax.legend(
             leg_color,
@@ -154,16 +205,10 @@ def sens_EoL_plot(calc=False):
 
     ax.set_ylabel('kilograms of CO$_2$-eq per treatment')
 
-    xtick_txt = [
-        "Baseline",
-        "Recycling IV + \ngloves",
-        "Recycling IV",
-        "Recycling \ngloves",
-    ]
-
     ax.set_xticklabels(xtick_txt, rotation=0)
     ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
     plt.tight_layout()
+    plot_save_path = s.join_path(lca_init.path_github, r"figures")
     output_file = s.join_path(plot_save_path, f"penG_EoL_sens.png")
-    plt.savefig(output_file, dpi=300, format='png', bbox_inches='tight')
+    plt.savefig(output_file, dpi=dpi, format='png', bbox_inches='tight')
     plt.show()

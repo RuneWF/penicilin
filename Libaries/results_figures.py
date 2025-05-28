@@ -9,6 +9,7 @@ import brightway2 as bw
 # import life_cycle_assessment as lc
 import lcia_results as lr
 from standards import *
+import database_manipulation as dm
 
 from lca import LCA
 
@@ -47,8 +48,7 @@ def obtain_impact_category_units():
     return impact_cat_unit_dct
 
 def organize_dataframe_index(df):
-    df_tot, _ = lca_init.dataframe_element_scaling(df)
-    df_tot_T = df_tot.T
+    df_tot_T = df.T
     ic_idx_lst = []
     for i in lca_init.lcia_impact_method():
         ic_idx_lst.append(str(i[2]).capitalize())
@@ -77,12 +77,25 @@ def save_totals_to_excel(df):
 
     save_LCIA_results(df_tot_T, file_path_tot, "totals")
 
-def data_set_up(sheet_name="penicillin"):
+def print_min_max_val(scaled_df):
+    min_val = None
+    max_val = 0
+    for col in scaled_df.columns:
+        for idx, row in scaled_df.iterrows():
+            val = row[col]
+            if min_val is None or val < min_val:
+                min_val = val
+            elif val != 1 and val > max_val:
+                max_val = val
+    print(f"Mininum valúe : {min_val}, Maximum value : {max_val}")
 
+
+def data_set_up(reload=False, calc=False):
+    dm.database_setup(path, matching_database, reload=reload)
     lcia_method = lca_init.lcia_meth
 
     # Perform quick LCIA (Life Cycle Impact Assessment) and get the results
-    df = lr.quick_LCIA(sheet_name)
+    df = lr.obtain_LCIA_results(calc)
     save_totals_to_excel(df)
 
     # Process the data
@@ -91,23 +104,25 @@ def data_set_up(sheet_name="penicillin"):
     if type(df_res) is list:
         df_mid, df_endpoint = df_res
     # Scale the data for midpoint and endpoint
-    df_tot_mid, df_scaled_mid = lca_init.dataframe_element_scaling(df_mid)
+    df_scaled_mid = lca_init.dataframe_element_scaling(df_mid)
     
     if 'recipe' in lcia_method.lower():
-        df_tot_end, df_scaled_end = lca_init.dataframe_element_scaling(df_endpoint)
+        df_scaled_end = lca_init.dataframe_element_scaling(df_endpoint)
 
     # Extract the GWP (Global Warming Potential) column
     df_col = [df_mid.columns[1]]
     df_GWP = df_mid[df_col]
-  
-    return [df_scaled_mid, df_scaled_end, df_GWP, df_tot_mid, df_tot_end]
+    
+    print_min_max_val(df_scaled_mid)
+
+    return [df_scaled_mid, df_scaled_end, df_GWP, df_mid, df_endpoint]
 
 def plot_text_size():
     plt.rcParams.update({
     'font.size': 12,      # General font size
     'axes.titlesize': 14, # Title font size
     'axes.labelsize': 12, # Axis labels font size
-    'legend.fontsize': 10 # Legend font size
+    'legend.fontsize': 11 # Legend font size
     }) 
 
 def mid_end_legend_text(df):
@@ -131,7 +146,6 @@ def mid_end_figure_title(recipe):
     return title_txt
 
 def midpoint_graph(df, recipe, plot_x_axis, folder):
-    plot_text_size()
     recipe = 'Midpoint (H)'
     colors = color_range(colorname="coolwarm", color_quantity=2)
 
@@ -139,8 +153,15 @@ def midpoint_graph(df, recipe, plot_x_axis, folder):
     columns_to_plot = df.columns
     index_list = list(df.index.values)
 
+    
+    # dpi = 400
+    # width_in = 3543 / dpi
+    # height_in = width_in * 0.6
+
+
     # Create the plot
-    fig, ax = plt.subplots(1, figsize=(7, 5))
+    width_in, height_in, dpi = plot_dimensions()
+    fig, ax = plt.subplots(figsize=(width_in, height_in), dpi=dpi)
     bar_width = 1 / (len(index_list) + 1)
     index = np.arange(len(columns_to_plot))
 
@@ -157,7 +178,7 @@ def midpoint_graph(df, recipe, plot_x_axis, folder):
                zorder=10)
 
     # Set title and labels
-    ax.set_title(mid_end_figure_title(recipe))  
+    ax.set_title(mid_end_figure_title(recipe)+" results for 1 treatment")  
     ax.set_xticks(index + bar_width * (len(index_list) - 1) / 2)
     ax.set_xticklabels(plot_x_axis, rotation=90)  # Added rotation here
     ax.set_yticks(np.arange(0, 1 + 0.001, step=0.1))
@@ -170,7 +191,7 @@ def midpoint_graph(df, recipe, plot_x_axis, folder):
     fig.legend(
         mid_end_legend_text(df),
         loc='upper left',
-        bbox_to_anchor=(0.965, x_pos),
+        bbox_to_anchor=(0.975, x_pos),
         ncol= 1,  # Adjust the number of columns based on legend size
         fontsize=10,
         frameon=False
@@ -182,7 +203,7 @@ def midpoint_graph(df, recipe, plot_x_axis, folder):
         f'figures\{recipe}.png'
     )
     plt.tight_layout()
-    plt.savefig(output_file, dpi=300, format='png', bbox_inches='tight')
+    plt.savefig(output_file, dpi=dpi, format='png', bbox_inches='tight')
     plt.show()
 
 def endpoint_graph(df, recipe, plot_x_axis_end, folder):
@@ -244,7 +265,7 @@ def endpoint_graph(df, recipe, plot_x_axis_end, folder):
     plt.savefig(output_file, dpi=300, format='png', bbox_inches='tight')
     plt.show()
 
-def create_results_figures():
+def create_results_figures(reload=False, calc=False):
     # Set the current Brightway project
     bw_project = lca_init.bw_project
     bd.projects.set_current(bw_project)
@@ -256,12 +277,12 @@ def create_results_figures():
     for i in range(len(plot_x_axis_all)):
         plot_x_axis_all[i] = impact_categories[i][2]
     
-     # Extract the endpoint categories from the plot x-axis
-    plot_x_axis_end = [
-            "Ecosystem\n damage",
-            "Human health\n damage",
-            "Natural resources\n damage"
-        ]
+    # # Extract the endpoint categories from the plot x-axis
+    # plot_x_axis_end = [
+    #         "Ecosystem\n damage",
+    #         "Human health\n damage",
+    #         "Natural resources\n damage"
+    #     ]
     
     # Extract the midpoint categories from the plot x-axis
     ic_mid = plot_x_axis_all[:-3]
@@ -276,7 +297,7 @@ def create_results_figures():
             string[0] = 'GWP'
         plot_x_axis_mid.append(string[0])
     
-    data = data_set_up()
+    data = data_set_up(reload=reload, calc=calc)
     
     midpoint_graph(data[0], 'recipe', plot_x_axis_mid, folder)
     # endpoint_graph(data[1], 'recipe', plot_x_axis_end, folder)

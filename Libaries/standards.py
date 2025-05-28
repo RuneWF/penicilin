@@ -76,3 +76,25 @@ def import_LCIA_results(file_name, impact_category):
 def color_range(colorname="Accent", color_quantity=9):
     cmap = plt.get_cmap(colorname)
     return [cmap(i) for i in np.linspace(0, 1, color_quantity)]
+
+def plot_dimensions(subfigure=False):
+    if subfigure:
+        plt.rcParams.update({
+            'font.size': 14,      # General font size
+            'axes.titlesize': 16, # Title font size
+            'axes.labelsize': 14, # Axis labels font size
+            'legend.fontsize': 13 # Legend font size
+        }) 
+    else:
+        plt.rcParams.update({
+            'font.size': 11,      # General font size
+            'axes.titlesize': 13, # Title font size
+            'axes.labelsize': 11, # Axis labels font size
+            'legend.fontsize': 9 # Legend font size
+        }) 
+
+    dpi = 300
+    width_in = 2244 / dpi
+    height_in = width_in * 0.65
+
+    return width_in, height_in, dpi

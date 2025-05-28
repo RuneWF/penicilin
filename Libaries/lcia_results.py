@@ -13,7 +13,25 @@ matching_database = "ev391cutoff"
 
 lca_init = LCA(path=path,matching_database=matching_database)
 
-def perform_LCIA(unique_process_index, unique_func_unit, sheet_name, case):
+def extract_func_unit():
+    db = lca_init.db
+    func_unit = []
+    idx_lst = []
+    func_unit_keys = []
+    for act in db:
+        if "defined system" in act["name"]:
+            idx_lst.append(act["name"])
+            func_unit_keys.append(act)
+    func_unit_keys.sort()
+    func_unit_keys.reverse()
+    idx_lst.sort()
+
+    for key in func_unit_keys:
+        func_unit.append({key : 1})
+        
+    return func_unit, idx_lst
+
+def perform_LCIA():
     """
     Calculate Life Cycle Impact Assessment (LCIA) results for given processes and impact categories.
 
@@ -34,26 +52,26 @@ def perform_LCIA(unique_process_index, unique_func_unit, sheet_name, case):
     # Ensure impact categories is a list
     if isinstance(impact_categories, tuple):
         impact_categories = list(impact_categories)
-    
+    func_unit, idx_lst = extract_func_unit()
     # Initialize DataFrame to store results
-    df_unique = pd.DataFrame(0, index=unique_process_index, columns=impact_categories, dtype=object)
+    df = pd.DataFrame(0, index=idx_lst, columns=impact_categories, dtype=object)
 
-    print(f'Total amount of calculations: {len(impact_categories) * len(unique_func_unit)}')
+    print(f'Total amount of calculations: {len(impact_categories) * len(idx_lst)}')
     # Set up and perform the LCA calculation
-    bd.calculation_setups[f'calc_setup_{case}'] = {'inv': unique_func_unit, 'ia': impact_categories}
+    bd.calculation_setups[f'1 treatment'] = {'inv': func_unit, 'ia': impact_categories}
      
-    mylca = bc.MultiLCA(f'calc_setup_{case}')
+    mylca = bc.MultiLCA(f'1 treatment')
     res = mylca.results
     
     # Store results in DataFrame
     for col, arr in enumerate(res):
         for row, val in enumerate(arr):
-            df_unique.iat[col, row] = val
+            df.iat[col, row] = val
 
     # Save results to file
-    save_LCIA_results(df_unique, lca_init.file_name_unique_process, sheet_name)
+    save_LCIA_results(df, lca_init.file_name, "results")
 
-    return df_unique
+    return df
 
 def func_unit_LCIA(df_unique):
     # Initialize DataFrame for results
@@ -88,96 +106,79 @@ def func_unit_LCIA(df_unique):
     
     return df
 
-def lcia_dataframe_handling(sheet_name, unique_process_index, unique_func_unit):
-    user_input = ''
+def obtain_LCIA_results(calc):
     
-    database = lca_init.database_name
     file_name = lca_init.file_name
-    file_name_unique = lca_init.file_name_unique_process
 
     # Check if the file exists
-    if os.path.isfile(file_name_unique):
+    if os.path.isfile(file_name):
         try:
-            # Import LCIA results
-            # df_unique = import_LCIA_results(file_name_unique, impact_categories)
-            user_input = input(f"Do you want to redo the calculations for some process in {database}?\n"
-                               "Options:\n"
-                               "  'y' - Yes, redo the calculations\n"
-                               "  'n' - No, do not redo any calculations\n"
-                               "Please enter your choice: ")
-            
-            # Redo calculations if user chooses 'y'
-            if 'y' in user_input.lower():
-                df_unique = perform_LCIA(unique_process_index, unique_func_unit, sheet_name, case=database)
+            if calc:
+                df = perform_LCIA()
         
         except (ValueError, KeyError, TypeError) as e:
             print(e)
             # Perform LCIA if there is an error in importing results
-            df_unique = perform_LCIA(unique_process_index, unique_func_unit, sheet_name, case=database)
+            df = perform_LCIA()
     
     else:
-        print(f"{file_name_unique} do not exist, but will be created now")
+        print(f"{file_name} do not exist, but will be created now")
         # Perform LCIA if file does not exist
-        df_unique = perform_LCIA(unique_process_index, unique_func_unit, sheet_name, case=database)
+        df = perform_LCIA()
 
     # Import LCIA results if user chooses 'n'
-    if 'n' in user_input.lower():
+    if calc is False:
         df = import_LCIA_results(file_name, lca_init.lcia_impact_method())
         
-    elif 'y' in user_input.lower():
-        df = func_unit_LCIA(df_unique)
-        # Save LCIA results to file
-        save_LCIA_results(df, file_name, sheet_name)   
-    else:
-        print("select either n or y, try again")
-        lcia_dataframe_handling(sheet_name, unique_process_index, unique_func_unit)
-
+ 
     return df
 
-def quick_LCIA(sheet_name):
-    """
-    Perform a quick Life Cycle Impact Assessment (LCIA) calculation.
 
-    Parameters:
-    initialization (tuple): Contains database project, database name, flows, LCIA method, and database type.
-    file_name (str): The name of the file to save the results.
-    file_name_unique (str): The name of the file to save unique process results.
-    sheet_name (str): The name of the sheet to save the results.
 
-    Returns:
-    tuple: DataFrame with LCIA results, list of impact categories for plotting, list of impact categories, DataFrame with unique process results.
-    """
-    functional_unit = lca_init.LCA_initialization()
+# def quick_LCIA(sheet_name, reload=False, calc=False):
+#     """
+#     Perform a quick Life Cycle Impact Assessment (LCIA) calculation.
+
+#     Parameters:
+#     initialization (tuple): Contains database project, database name, flows, LCIA method, and database type.
+#     file_name (str): The name of the file to save the results.
+#     file_name_unique (str): The name of the file to save unique process results.
+#     sheet_name (str): The name of the sheet to save the results.
+
+#     Returns:
+#     tuple: DataFrame with LCIA results, list of impact categories for plotting, list of impact categories, DataFrame with unique process results.
+#     """
+#     functional_unit = lca_init.LCA_initialization(reload=reload)
 
     
-    unique_process_index = []
-    unique_process = []
+#     unique_process_index = []
+#     unique_process = []
 
-    # Identify unique processes
-    for exc in functional_unit.values():
-        for proc in exc.keys():
-            if str(proc) not in unique_process_index:
-                unique_process_index.append(str(proc))
-                unique_process.append(proc)
+#     # Identify unique processes
+#     for exc in functional_unit.values():
+#         for proc in exc.keys():
+#             if str(proc) not in unique_process_index:
+#                 unique_process_index.append(str(proc))
+#                 unique_process.append(proc)
     
-    unique_process_index.sort()
+#     unique_process_index.sort()
 
-    unique_func_unit = []
-    for upi in unique_process_index:
-        for proc in unique_process:
-            if upi == f'{proc}':
-                unique_func_unit.append({proc: 1})
+#     unique_func_unit = []
+#     for upi in unique_process_index:
+#         for proc in unique_process:
+#             if upi == f'{proc}':
+#                 unique_func_unit.append({proc: 1})
 
-    impact_categories = lca_init.lcia_impact_method()
+#     impact_categories = lca_init.lcia_impact_method()
 
-    # Obtain a shortened version of the impact categories for the plots
-    plot_x_axis_all = [0] * len(impact_categories)
-    for i in range(len(plot_x_axis_all)):
-        plot_x_axis_all[i] = impact_categories[i][2]
+#     # Obtain a shortened version of the impact categories for the plots
+#     plot_x_axis_all = [0] * len(impact_categories)
+#     for i in range(len(plot_x_axis_all)):
+#         plot_x_axis_all[i] = impact_categories[i][2]
 
-    df = lcia_dataframe_handling(sheet_name, unique_process_index, unique_func_unit)
+#     df = lcia_dataframe_handling(sheet_name, unique_process_index, unique_func_unit, calc=calc)
 
-    return df
+#     return df
 
 
 

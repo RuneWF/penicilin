@@ -57,13 +57,13 @@ class LCA():
 
         self.df_rearranged = pd.DataFrame()
 
-    def initialization(self, sensitivity=False):
+    def initialization(self, reload=False, sensitivity=False):
         """
         Initialize the Brightway project and set up the database.
         
         :return: Tuple containing file information and initialization details
         """
-        dm.database_setup(self.path, self.matching_database, bw_project=self.bw_project, sensitivty=sensitivity)
+        dm.database_setup(self.path, self.matching_database, bw_project=self.bw_project, reload=reload, sensitivty=sensitivity)
         # dm.remove_bio_co2_recipe()
         # dm.add_new_biosphere_activities(self.bw_project, self.path)
 
@@ -101,16 +101,15 @@ class LCA():
         return self.all_methods
 
     # Function to initialize parameters for the LCIA calculations
-    def LCA_initialization(self, sensitivity=False):
+    def LCA_initialization(self, reload=False, sensitivity=False):
         # Setting up an empty dictionary with the flows as the key
-        self.initialization(sensitivity=sensitivity)
+        self.initialization(reload=reload, sensitivity=sensitivity)
         procces_keys = {key: None for key in self.flow}
 
         size = len(self.flow)
-        db = bd.Database(self.database_name)
         
         # Iterate over the database to find matching processes
-        for act in db:
+        for act in self.db:
             for proc in range(size):
                 if act['name'] == self.flow[proc]:
                     procces_keys[act['name']] = act['code']
@@ -120,9 +119,9 @@ class LCA():
         # Obtaining all the subprocesses in a list 
         for key, item in procces_keys.items():
             try:
-                process.append(db.get(item))
+                process.append(self.db.get(item))
             except KeyError:
-                print(f"Process with key '{item}' not found in the database '{db}'")
+                print(f"Process with key '{item}' not found in the database '{self.db}'")
                 process = None
         
         # Obtaining the impact categories for the LCIA calculations
@@ -165,19 +164,19 @@ class LCA():
     # and the second is scaling the totals in each column to the max value
     def dataframe_element_scaling(self, df):
         # Creating a deep copy of the dataframe to avoid changing the original dataframe
-        df_tot = dc(df)
-        # Obating the sum of each process for each given LCIA category
-        for col in range(df.shape[1]):  # Iterate over columns
-            for row in range(df.shape[0]):  # Iterate over rows
-                tot = 0
-                for val in df.iloc[row,col].values():
-                    tot += val
-                df_tot.iloc[row,col] = tot
+        # df_tot = dc(df)
+        # # Obating the sum of each process for each given LCIA category
+        # for col in range(df.shape[1]):  # Iterate over columns
+        #     for row in range(df.shape[0]):  # Iterate over rows
+        #         tot = 0
+        #         for val in df.iloc[row,col].values():
+        #             tot += val
+        #         df_tot.iloc[row,col] = tot
 
-        df_cols = df_tot.columns
+        df_cols = df.columns
         df_cols = df_cols.to_list()
 
-        df_scaled = dc(df_tot)
+        df_scaled = dc(df)
 
         # Obtaing the scaled value of each LCIA results in each column to the max
         for i in df_cols:
@@ -185,7 +184,7 @@ class LCA():
             for _, row in df_scaled.iterrows():
                 row[i] /= scaling_factor
 
-        return df_tot, df_scaled
+        return df_scaled
 
     def x_label_text(self):
         impact_categories = self.lcia_impact_method()
