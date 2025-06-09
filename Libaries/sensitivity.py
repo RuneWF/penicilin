@@ -11,24 +11,23 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import matplotlib.image as mpimg
 import seaborn as sns
 
-import standards as s
-import database_manipulation as dm
+# import standards as s
+# import database as dm
 import sensitvity_countries as stc
 import sensitivity_EoL as eol
 
-from lca import LCA
+import main as m
 
 path = r'C:/Users/ruw/Desktop'
 matching_database = "ev391cutoff"
 
-lca_init = LCA(path=path,matching_database=matching_database)
-
+init = m.main(path=path,matching_database=matching_database)
 
 
 # Function to calculate treatment quantities based on scaling factors from an Excel file
 def treatment_quantity():
     # Use a context manager to open the Excel file
-    with pd.ExcelFile(lca_init.system_path) as excel_file:
+    with pd.ExcelFile(init.system_path) as excel_file:
         # Get the sheet names
         sheet_names = excel_file.sheet_names
     
@@ -38,9 +37,9 @@ def treatment_quantity():
             scaling_sheet = sheet
 
     # Read the treatment quantity data from the second sheet
-    df_treatment_quantity = pd.read_excel(io=lca_init.system_path, sheet_name=scaling_sheet)
+    df_treatment_quantity = pd.read_excel(io=init.system_path, sheet_name=scaling_sheet)
     scaling_dct = {}
-    for act in lca_init.db:
+    for act in init.db:
         # Filter activities related to penicillin
         if "filling of glass vial" in act['name'] or "tablet" in act['name']:
             for exc in act.exchanges():
@@ -62,7 +61,7 @@ def obtain_activities():
     # Get scaling factors
     scaling_dct = treatment_quantity()
 
-    for act in lca_init.db:
+    for act in init.db:
         # Filter activities related to penicillin
         if "penicillium" in act['name']:
             pencillium_fu[act["name"]] = []
@@ -80,23 +79,23 @@ def obtain_activities():
 
 # Function to create and return the results folder path
 def folder():
-    sens_folder = rf"{lca_init.results_path}\results"
-    save_dir = s.results_folder(sens_folder, "sensitivity")
+    sens_folder = rf"{init.results_path}\results"
+    save_dir = init.results_folder(sens_folder, "sensitivity")
     return save_dir
 
 # Function to generate file paths for sensitivity results
 def sensitivity_paths(pen_type, save_dir):
     if "V" in pen_type:
-        sens_file_path = s.join_path(save_dir, r"penincillium_V.xlsx")
+        sens_file_path = init.join_path(save_dir, r"penincillium_V.xlsx")
     else:
-        sens_file_path = s.join_path(save_dir, r"penincillium_G.xlsx")
+        sens_file_path = init.join_path(save_dir, r"penincillium_G.xlsx")
     
     return sens_file_path
 
 # Function to calculate or import sensitivity results
 def calculate_sensitivity_results(pencillium_fu, proc_check, calc=False):
     # Get the LCIA method and results folder
-    method_GWP = lca_init.lcia_impact_method()[1]
+    method_GWP = init.lcia_impact_method()[1]
     save_dir = folder()
     file_path = {pen_type: sensitivity_paths(pen_type, save_dir) for pen_type in pencillium_fu.keys()}
     pen_df = {}
@@ -122,11 +121,11 @@ def calculate_sensitivity_results(pencillium_fu, proc_check, calc=False):
 
             # Save the results to the dictionary and export to an Excel file
             pen_df[pen_type] = df_sens
-            s.save_LCIA_results(df_sens, file_path[pen_type], "results")
+            init.save_LCIA_results(df_sens, file_path[pen_type], "results")
     else:
         # Import pre-calculated LCIA results if calc is False
         for pen_type, excel_path in file_path.items():
-            temp = s.import_LCIA_results(excel_path, method_GWP)
+            temp = init.import_LCIA_results(excel_path, method_GWP)
             temp.columns = [method_GWP[1]]  # Rename columns for consistency
             pen_df[pen_type] = temp
     
@@ -142,7 +141,7 @@ def compacting_penicillium_dataframes(pen_df):
         "Waste": ["incineration", "penicillium"]
     }
 
-    method_GWP = lca_init.lcia_impact_method()[1]
+    method_GWP = init.lcia_impact_method()[1]
 
     pen_compact_df = {}
     tot_df = {}
@@ -258,15 +257,6 @@ def sort_dict_keys(dct):
 
     return dct_sorted
 
-# Function to set font sizes for plots
-def figure_font_sizes():
-    plt.rcParams.update({
-        'font.size': 12,      # General font size
-        'axes.titlesize': 14, # Title font size
-        'axes.labelsize': 12, # Axis labels font size
-        'legend.fontsize': 10 # Legend font size
-    }) 
-
 # Helper function to create sensitivity legend
 def sensitivity_legend(col_sens, idx, leg):
     if "-" in col_sens[idx]:
@@ -279,14 +269,14 @@ def sensitivity_legend(col_sens, idx, leg):
 # Function to plot sensitivity analysis results
 def sensitivity_plot(pen_stat_tot):
      
-    colors = s.color_range(colorname="coolwarm", color_quantity=5)
+    colors = init.color_range(colorname="coolwarm", color_quantity=5)
     colors.reverse()
 
-    output_file_sens = rf"{lca_init.path_github}\figures\senstivity.png"
+    output_file_sens = rf"{init.path_github}\figures\senstivity.png"
 
     col_sens, _ = organize_sensitivity_scenarios()
     pen_stat_tot_sorted = sort_dict_keys(pen_stat_tot)
-    width_in, height_in, dpi = s.plot_dimensions(subfigure=True)
+    width_in, height_in, dpi = init.plot_dimensions(subfigure=True)
     _, axes = plt.subplots(1, len(pen_stat_tot_sorted), figsize=(width_in*1.9, height_in), dpi=dpi)
 
     title_identifier = [r"$\bf{Fig\ A:}$ ", r"$\bf{Fig\ B:}$ "]
@@ -324,19 +314,16 @@ def sensitivity_plot(pen_stat_tot):
 # Function to perform Monte Carlo simulation and plot results
 def monte_carlo_plot(stat_arr_dct, base=10, power=4):
     
-    
-    output_file_MC = rf"{lca_init.path_github}\figures\monte_carlo.png"
+    output_file_MC = rf"{init.path_github}\figures\monte_carlo.png"
     data_proccessing_dct = calc_mean_std(stat_arr_dct)
     data_proccessing_dct_sorted = sort_dict_keys(data_proccessing_dct)
 
     num_samples = pow(base, power)  # Number of samples you want to generate
-    width_in, height_in, dpi = s.plot_dimensions()
+    width_in, height_in, dpi = init.plot_dimensions()
     plt.figure(figsize=(width_in, height_in), dpi=dpi)
-    hatch_style = ["oo", "////"]
-    figure_font_sizes()
     arr_lst = []
     pen_label = ["G", "V"]
-    colors = s.color_range(colorname="coolwarm", color_quantity=len(hatch_style))
+    colors = init.color_range(colorname="coolwarm", color_quantity=len(pen_label))
     for c, dct in enumerate(data_proccessing_dct_sorted.values()):
         mean = dct["Mean"]
         std_dev = dct["Standard Deviation"]
@@ -370,7 +357,7 @@ def monte_carlo_plot(stat_arr_dct, base=10, power=4):
     print(f"T-statistic: {t_stat}, P-value: {p_value}")
 
 def extract_fu_penG_contribution():
-    db = lca_init.db
+    db = init.db
     func_unit = []
     idx_lst = []
     for act in db:
@@ -383,7 +370,7 @@ def extract_fu_penG_contribution():
     return func_unit, idx_lst
 
 def extract_penG_actvitites():
-    data = lca_init.LCA_initialization()
+    data = init.initialization()
     fu_all = data["Penicillin G, defined system"]
 
     fu_sep = []
@@ -400,7 +387,7 @@ def extract_penG_actvitites():
 
             fu_sep.append({key : item})
             idx_lst.append(key)
-            for act in lca_init.db:
+            for act in init.db:
                 if "penicillium G" in str(act):
                     fu_sep.append({act : scaling_dct["manufacturing of raw penicillium G"]})
                     idx_lst.append(str(act))
@@ -428,17 +415,16 @@ def substract_penGprod(df_contr):
 def contribution(contr_excel_path):
     func_unit, idx_lst = extract_penG_actvitites()
     calc_setup_name = str("PenG contrinbution")
-    bd.calculation_setups[calc_setup_name] = {'inv': func_unit, 'ia': lca_init.lcia_impact_method()}
+    bd.calculation_setups[calc_setup_name] = {'inv': func_unit, 'ia': init.lcia_impact_method()}
     mylca = bc.MultiLCA(calc_setup_name)
     res = mylca.results
-    df_contr = pd.DataFrame(0, index=idx_lst, columns=lca_init.lcia_impact_method(), dtype=object)
+    df_contr = pd.DataFrame(0, index=idx_lst, columns=init.lcia_impact_method(), dtype=object)
 
     # Store results in DataFrame
     for col, arr in enumerate(res):
         for row, val in enumerate(arr):
             df_contr.iat[col, row] = val
-    # print(df_contr.index)
-    # print(df_contr.columns)
+
     df_contr = substract_penGprod(df_contr)
 
     df_contr_share = dc(df_contr)
@@ -448,18 +434,18 @@ def contribution(contr_excel_path):
         for _, row in df_contr_share.iterrows():
             row[col] /= tot
 
-    s.save_LCIA_results(df_contr_share, contr_excel_path, sheet_name="contribution")
+    init.save_LCIA_results(df_contr_share, contr_excel_path, sheet_name="contribution")
 
     return df_contr_share
 
 def contribution_LCIA_calc(calc):
-    contr_excel_path = s.join_path(folder(), "penG_contribution.xlsx")
+    contr_excel_path = init.join_path(folder(), "penG_contribution.xlsx")
     if os.path.isfile(contr_excel_path):
         # user_input = input("Select y for recalculate or n to import calculated results")
         if calc:
             df_contr_share = contribution(contr_excel_path)
         else:
-            df_contr_share = s.import_LCIA_results(contr_excel_path, lca_init.lcia_impact_method())
+            df_contr_share = init.import_LCIA_results(contr_excel_path, init.lcia_impact_method())
  
     else:
         df_contr_share = contribution(contr_excel_path)
@@ -541,7 +527,7 @@ def lcia_categories():
     ic_idx = [1, -3, -2, -1]
     ic_plt = []
     for ic in ic_idx:
-        ic_plt.append(lca_init.lcia_impact_method()[ic])
+        ic_plt.append(init.lcia_impact_method()[ic])
 
     return ic_plt
 
@@ -581,8 +567,8 @@ def penG_contribution_plot(calc):
     dct, leg_txt = contribution_results_to_dct(calc)
     bottom = np.zeros(len(dct.keys()))
 
-    colors = s.color_range(colorname="coolwarm", color_quantity=len(dct.keys()))
-    width_in, height_in, dpi = s.plot_dimensions()
+    colors = init.color_range(colorname="coolwarm", color_quantity=len(dct.keys()))
+    width_in, height_in, dpi = init.plot_dimensions()
     fig, ax = plt.subplots(figsize=(width_in, height_in), dpi=dpi)
     for idx, dct_ in enumerate(dct.values()):
         for col_idx, item_dct in enumerate(dct_.values()):
@@ -631,179 +617,197 @@ def penG_contribution_plot(calc):
     plt.savefig(output_file_contr, dpi=300, format='png', bbox_inches='tight')
     plt.show()
 
-def func_unit_countries_sens(reload):
-    system_path = lca_init.system_path
-    dm.import_databases(reload=reload,sensitivty=True)
-    sheets_to_import = dm.extract_excel_sheets()
-    func_unit = {}
-    # Check if the database is case1
-    for sheet in sheets_to_import:
-        data = pd.read_excel(system_path, sheet_name=sheet)
-        db_name = data.columns[1]
-        db = bd.Database(db_name)
-        func_unit[db_name] = []
-        for act in db:
-            temp = act['name']
-            # Check if the flow is valid and add to the flow list
-            if "defined" in temp:
-                func_unit[db_name].append({act : 1})
 
-    return func_unit
+def obtain_func_unit():
+    func_unit_recycling = {}
+    for act in init.db:
+        if "Penicillin G," in act["name"]:
+            func_unit_recycling[act["name"]] = []
+            for exc in act.exchanges():
+                if "incineration" in exc["name"] or "recycling" in exc["name"] or "avoided" in exc["name"]:
+                    func_unit_recycling[act["name"]].append({exc.input : exc["amount"]})
+                elif "Penicillin G," in exc["name"]:
+                    func_unit_recycling[act["name"]].append({exc.input : exc["amount"]})
 
-def sort_countries_func_unit(reload):
-    func_unit = func_unit_countries_sens(reload)
-    sorted_fu_keys = list(func_unit.keys())
-    sorted_fu_keys.sort()
-    sorted_fu_keys
 
-    sorted_act = ["G", "V"]
-    sorted_func_unit = {}
+    fu_keys_sorted = list(func_unit_recycling.keys())
+    fu_keys_sorted.sort()
+    fu_keys_sorted
 
-    for country in sorted_fu_keys:
-        sorted_func_unit[country] = []
-        for act in sorted_act:
-            for fu in func_unit[country]:
-                if act in str(fu.keys()):
-                    sorted_func_unit[country].append(fu)
+    func_unit_recycling_sorted = {}
 
-    return sorted_func_unit
+    for key in fu_keys_sorted:
+        func_unit_recycling_sorted[key] = func_unit_recycling[key]
 
-def countries_calc(excel_path, reload):
-    impact_cat = lca_init.lcia_impact_method()
-    impact_cat_GWP = impact_cat[1]
-    sorted_func_unit = sort_countries_func_unit(reload)
-    res_arr = {}
-    for country, fu in sorted_func_unit.items():
-        print(f"Performing sensitivity for {country}")
-        bd.calculation_setups[f'sensitivity_countries'] = {'inv': fu, 'ia': [impact_cat_GWP]}
-        mylca = bc.MultiLCA(f'sensitivity_countries')
-        res = mylca.results
+    return func_unit_recycling_sorted
 
-        res_arr[country] = res
-    
-    df = pd.DataFrame(0, index=["Pen G", "Pen V"], columns=list(res_arr.keys()), dtype=object)
+def obtain_results(calc):
+    excel_path = init.join_path(init.results_path, r"results\sensitivity\sens_eol_penG.xlsx")
+    func_unit = obtain_func_unit() 
+    if calc:
+        ics = init.lcia_impact_method()     
+        pen_arr = []         
+        func_unit = obtain_func_unit()  
+        # Set up and perform the LCA calculation
+        for scenario, fu in func_unit.items():
+            bd.calculation_setups[str(scenario)] = {'inv': fu, 'ia': [ics[1]]}
+                
+            mylca = bc.MultiLCA(str(scenario))
+            res = mylca.results
+            pen_arr.append(res)    
 
-    for row, (country, arr) in enumerate(res_arr.items()):
-        for idx, val in enumerate(arr):
-            df.iloc[idx, row] = val[0]
+        res_countries_dct = {}
+        for lst_idx, (scenario, fu) in enumerate(func_unit.items()):
+            res_countries_dct[scenario] = {}
+            for arr_idx, dct in enumerate(fu):
+                temp = {}
+                for act in dct.keys():  
+                    val = pen_arr[lst_idx][arr_idx][0]
+                    if arr_idx == 0:
+                        act_0 = act
+                        val_0 = val
+                        temp[act_0] = val_0
+                    else:
+                        val_0 -= val
+                        temp[act_0] = val_0
+                        temp[act] =  val
+                    res_countries_dct[scenario].update(temp)
+        res_countries_dct
 
-    s.save_LCIA_results(df.T, excel_path, "sensitivity")
+        idx_lst = [
+        "Other",
+        "Incineration",
+        "Recycling",
+        "Avoided"
+        ]
 
-    return df.T, sorted_func_unit
+        df = pd.DataFrame(0, index=idx_lst, columns=res_countries_dct.keys(), dtype=object)
 
-def countries_LCIA_sens_calc(reload, calc):
-    # Set up and perform the LCA calculation
-    excel_path = s.join_path(folder(), "countries_sensitvity.xlsx")
+        for scenario in df.columns:
+            print(scenario)
+            for idx, row in df.iterrows():
+                for act, val in res_countries_dct[scenario].items():
+                    if idx.lower() in str(act):
+                        row[scenario] = val
 
-    if os.path.isfile(excel_path):
-        if calc:
-            df_sens, sorted_func_unit = countries_calc(excel_path, reload)
-        else:
-            df_sens = s.import_LCIA_results(excel_path, lca_init.lcia_impact_method())
-            sorted_func_unit = sort_countries_func_unit(reload)
+                    elif "Penicillin G" in str(act) and idx_lst[0] in idx:
+                        row[scenario] = val
+
+
+        df.index = [
+        "Cradle to Hospital",
+        "Incineration",
+        "Recycling",
+        "Avoided",
+        ]
+
+        init.save_LCIA_results(df,file_name=excel_path, sheet_name="EoL")
     else:
-        df_sens, sorted_func_unit = countries_calc(excel_path, reload)
-
-    return df_sens, sorted_func_unit
-
-def import_image_markers():
-    img_dct = {
-    "IN" : mpimg.imread(rf'{lca_init.path_github}\india.jpg'),
-    "CN" : mpimg.imread(rf'{lca_init.path_github}\china.jpg'),
-    "US" : mpimg.imread(rf'{lca_init.path_github}\usa.jpg'),
-    "IT" : mpimg.imread(rf'{lca_init.path_github}\italy.jpg'),
-    "CH" : mpimg.imread(rf'{lca_init.path_github}\switzerland.jpg')}
-
-    return img_dct
-
-def x_y_axis_text(sorted_func_unit):
-    y_label = "grams of CO$_2$-eq per FU"
-
-    x_tick_label = []
+        df = init.import_LCIA_results(excel_path, list(func_unit.keys()))
+        df.index = [
+            "Cradle to Hospital",
+            "Incineration",
+            "Recycling",
+            "Avoided",
+        ]
     
-    for key in sorted_func_unit.keys():
-        x_tick_label.append(key[-2:])
+       
 
-    return y_label, x_tick_label
+    return df
 
-def countries_penG_sens_plot(df, sorted_func_unit):
-    figure_font_sizes()
-    output_file_countries_sens = r"C:\Users\ruw\Desktop\RA\penicilin\figures\penG_countries_sens.png"
-    
-    penG = df["Pen G"].to_dict()
 
-    y_label, x_tick_label = x_y_axis_text(sorted_func_unit)
+def legend_set_up(df, fig, ax, xtick_txt):
+    tot_impact = {col : df[col].to_numpy().sum() for col in df.columns} 
 
-    # Create some data
-    data_G = {'': list(penG.keys()), f'kilo{y_label}': list(penG.values())}
-    df_G = pd.DataFrame(data_G)
+    for scenario, total in enumerate(tot_impact.values()):
+        ax.plot(xtick_txt[scenario], total, 'D', color="k", markersize=4, mec='k', label='Net impact', zorder=9)
+        # Add the data value
+        ax.text(
+            xtick_txt[scenario], total-0.08, f"{total:.2f}", 
+            ha='center', va='bottom', fontsize=11, 
+            color="k", zorder=11)
 
-    # Create the scatter plot
-    _, ax = plt.subplots(figsize=(7, 5))
-    sns.scatterplot(data=df_G, x='', y=f'kilo{y_label}', ax=ax, s=20)
+    # Custom legend with 'Total' included
+    handles, _ = ax.get_legend_handles_labels()
+    handles.append(
+        plt.Line2D([0], [0], marker='D', color='k', markerfacecolor="k", mec='k', markersize=4, label='Net impact')
+    )
 
-    # Add custom markers
-    for (xi, yi) in zip(df_G[''], df_G[f'kilo{y_label}']):
-        for c, i in import_image_markers().items():
-            if c in xi:
-                imagebox = OffsetImage(i, zoom=0.025)
-        ab = AnnotationBbox(imagebox, (xi, yi), frameon=False)
-        ax.add_artist(ab)
+    leg_color, _ = fig.gca().get_legend_handles_labels()
+    leg_txt = list(df.index)
 
-    ax.grid(axis='y', linestyle='--', alpha=0.7)
+    # Reverse the order of handles and labels
+    leg_txt.append("Net impact")
+    leg_txt = leg_txt[::-1]
 
-    # Remove x-ticks
-    ax.set_xticks(range(len(x_tick_label)))
-    ax.set_xticklabels(x_tick_label)
-    ax.set_ylim(0, 1.2)
-    plt.title("Penicillin G - Differet location of production site")
-    
+
+    leg_color.append(plt.Line2D([0], [0], marker='D', color='w', markerfacecolor="k", mec='k', markersize=4, label='Net impact'))
+    leg_color = leg_color[::-1]
+
+    arr = np.array(list(tot_impact.values()))
+
+    baseline = arr[0]
+    scenarios = arr[1:]
+
+
+    min_reduction = scenarios.max()/baseline
+    max_reduction = scenarios.min()/baseline
+
+    print(f"Min reduction : {round(min_reduction*100,2)}%")
+    print(f"Max reduction : {round(max_reduction*100,2)}%")
+
+    return leg_txt, leg_color
+
+def sens_EoL_plot(calc=False):
+    width = 0.5
+    df = obtain_results(calc)
+    colors = init.color_range(colorname="coolwarm", color_quantity=len(df.index))
+    width_in, height_in, dpi = init.plot_dimensions()
+    fig, ax = plt.subplots(figsize=(width_in, height_in), dpi=dpi)
+    df.T.plot(
+        kind='bar',
+        stacked=True,
+        title="GWP for different EoL for auxillary product for peniciilin G",
+        color=colors,
+        ax=ax,
+        width=width,
+        edgecolor="k",
+        zorder=5
+    )
+
+    xtick_txt = [
+        "Baseline",
+        "Recycling IV\n+ gloves",
+        "Recycling IV",
+        "Recycling \ngloves",
+    ]
+
+    leg_txt, leg_color = legend_set_up(df, fig, ax, xtick_txt)
+
+    ax.legend(
+            leg_color,
+            leg_txt,
+            loc='upper left',
+            bbox_to_anchor=(0.995, 1),
+            ncol= 1,  # Adactjust the number of columns based on legend size
+            fontsize=10,
+            frameon=False
+        )
+
+    ax.set_ylabel('kilograms of CO$_2$-eq per treatment')
+
+    ax.set_xticklabels(xtick_txt, rotation=0)
+    ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
     plt.tight_layout()
-    plt.savefig(output_file_countries_sens, dpi=300, format='png', bbox_inches='tight')
+    plot_save_path = init.join_path(init.path_github, r"figures")
+    output_file = init.join_path(plot_save_path, f"penG_EoL_seninit.png")
+    plt.savefig(output_file, dpi=dpi, format='png', bbox_inches='tight')
     plt.show()
 
-def countries_penV_sens_plot(df, sorted_func_unit):
-    figure_font_sizes()
-    output_file_countries_sens = r"C:\Users\ruw\Desktop\RA\penicilin\figures\penV_countries_sens.png"
-    penV = df["Pen V"].to_dict()
-
-    for key, val in penV.items():
-        penV[key] = val* 1000
-    # Create some data
-
-    y_label, x_tick_label = x_y_axis_text(sorted_func_unit)
-
-    data_V = {'': list(penV.keys()), y_label: list(penV.values())}
-    df_V = pd.DataFrame(data_V)
-
-    # Create the scatter plot
-    _, ax = plt.subplots(figsize=(7, 5))
-    sns.scatterplot(data=df_V, x='', y=y_label, ax=ax, s=20)
-
-    # Add custom markers
-    for (xi, yi) in zip(df_V[''], df_V[y_label]):
-        for c, i in import_image_markers().items():
-            if c in xi:
-                imagebox = OffsetImage(i, zoom=0.025)
-        ab = AnnotationBbox(imagebox, (xi, yi), frameon=False)
-        ax.add_artist(ab)
-
-    # Add grid lines for the y-axis
-    ax.grid(axis='y', linestyle='--', alpha=0.7)
-
-    # Remove x-ticks
-    ax.set_xticks(range(len(x_tick_label)))
-    ax.set_xticklabels(x_tick_label)
-    ax.set_ylim(0, 50)
-    plt.title("Penicillin V - Differet location of production site")
-
-    plt.tight_layout()
-    plt.savefig(output_file_countries_sens, dpi=300, format='png', bbox_inches='tight')
-    plt.show()
 
 # Main function to perform sensitivity and uncertainty analysis
 def perform_sens_uncert_analysis(mc_base=10, mc_power=4, reload=False, calc=False, sensitivty=False):
-    dm.database_setup(path, matching_database, reload=reload, sensitivty=sensitivty)
+    init.database_setup(reload=reload, sensitivty=sensitivty)
     pencillium_fu, proc_check = obtain_activities()
     pen_df = calculate_sensitivity_results(pencillium_fu, proc_check, calc)
     pen_compact_df, tot_df, pen_compact_idx = compacting_penicillium_dataframes(pen_df)
@@ -812,12 +816,8 @@ def perform_sens_uncert_analysis(mc_base=10, mc_power=4, reload=False, calc=Fals
     monte_carlo_plot(stat_arr_dct, mc_base, mc_power)
     penG_contribution_plot(calc)
 
-    # df_sens, sorted_func_unit = countries_LCIA_sens_calc(reload=reload,calc=calc)
-
-    # countries_penG_sens_plot(df_sens, sorted_func_unit)
-    # countries_penV_sens_plot(df_sens, sorted_func_unit)
 
     stc.countries_sens_plot(calc)
-    eol.sens_EoL_plot(calc)
+    sens_EoL_plot(calc)
 
 

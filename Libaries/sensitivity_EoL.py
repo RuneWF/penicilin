@@ -6,19 +6,18 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 
-import standards as s
+# import standards as s
 
-from lca import LCA
+import main as m
 
 matching_database = "ev391cutoff"
 path = r'C:/Users/ruw/Desktop'
 
-lca_init = LCA(path=path, matching_database=matching_database)
+init = m.main(path=path, matching_database=matching_database)
 
 def obtain_func_unit():
     func_unit_recycling = {}
-    for act in lca_init.db:
-        # print(act)
+    for act in init.db:
         if "Penicillin G," in act["name"]:
             func_unit_recycling[act["name"]] = []
             for exc in act.exchanges():
@@ -40,10 +39,10 @@ def obtain_func_unit():
     return func_unit_recycling_sorted
 
 def obtain_results(calc):
-    excel_path = s.join_path(lca_init.results_path, r"results\sensitivity\sens_eol_penG.xlsx")
+    excel_path = init.join_path(init.results_path, r"results\sensitivity\sens_eol_penG.xlsx")
     func_unit = obtain_func_unit() 
     if calc:
-        ics = lca_init.lcia_impact_method()     
+        ics = init.lcia_impact_method()     
         pen_arr = []         
         func_unit = obtain_func_unit()  
         # Set up and perform the LCA calculation
@@ -87,13 +86,10 @@ def obtain_results(calc):
                 for act, val in res_countries_dct[scenario].items():
                     if idx.lower() in str(act):
                         row[scenario] = val
-                        # print(idx, act)
-                        # else:
-                        #     print(idx, key)
+
                     elif "Penicillin G" in str(act) and idx_lst[0] in idx:
                         row[scenario] = val
-                    # else:
-                    #     row[scenario] = val
+
 
         df.index = [
         "Cradle to Hospital",
@@ -102,9 +98,9 @@ def obtain_results(calc):
         "Avoided",
         ]
 
-        s.save_LCIA_results(df,file_name=excel_path, sheet_name="EoL")
+        init.save_LCIA_results(df,file_name=excel_path, sheet_name="EoL")
     else:
-        df = s.import_LCIA_results(excel_path, list(func_unit.keys()))
+        df = init.import_LCIA_results(excel_path, list(func_unit.keys()))
         df.index = [
             "Cradle to Hospital",
             "Incineration",
@@ -116,14 +112,6 @@ def obtain_results(calc):
 
     return df
 
-# Function to set font sizes for plots
-def figure_font_sizes():
-    plt.rcParams.update({
-        'font.size': 12,      # General font size
-        'axes.titlesize': 14, # Title font size
-        'axes.labelsize': 12, # Axis labels font size
-        'legend.fontsize': 10 # Legend font size
-    }) 
 
 def legend_set_up(df, fig, ax, xtick_txt):
     tot_impact = {col : df[col].to_numpy().sum() for col in df.columns} 
@@ -162,16 +150,16 @@ def legend_set_up(df, fig, ax, xtick_txt):
     min_reduction = scenarios.max()/baseline
     max_reduction = scenarios.min()/baseline
 
-    print(f"Min reduction : {round(min_reduction*100,2)}%")
-    print(f"Max reduction : {round(max_reduction*100,2)}%")
+    print(f"Min reduction : {round((1-min_reduction)*100,2)}%")
+    print(f"Max reduction : {round((1-max_reduction)*100,2)}%")
 
     return leg_txt, leg_color
 
 def sens_EoL_plot(calc=False):
     width = 0.5
     df = obtain_results(calc)
-    colors = s.color_range(colorname="coolwarm", color_quantity=len(df.index))
-    width_in, height_in, dpi = s.plot_dimensions()
+    colors = init.color_range(colorname="coolwarm", color_quantity=len(df.index))
+    width_in, height_in, dpi = init.plot_dimensions()
     fig, ax = plt.subplots(figsize=(width_in, height_in), dpi=dpi)
     df.T.plot(
         kind='bar',
@@ -208,7 +196,7 @@ def sens_EoL_plot(calc=False):
     ax.set_xticklabels(xtick_txt, rotation=0)
     ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
     plt.tight_layout()
-    plot_save_path = s.join_path(lca_init.path_github, r"figures")
-    output_file = s.join_path(plot_save_path, f"penG_EoL_sens.png")
+    plot_save_path = init.join_path(init.path_github, r"figures")
+    output_file = init.join_path(plot_save_path, f"penG_EoL_seninit.png")
     plt.savefig(output_file, dpi=dpi, format='png', bbox_inches='tight')
     plt.show()

@@ -12,15 +12,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-import standards as s
-import database_manipulation as dm
-
-from lca import LCA
+import main as m
 
 path = r'C:/Users/ruw/Desktop'
 matching_database = "ev391cutoff"
 
-lca_init = LCA(path=path,matching_database=matching_database)
+init = m.main(path=path,matching_database=matching_database)
 
 pen_type =  ["G", "V"]
 
@@ -92,7 +89,7 @@ def extract_penV_activities(lst, val, exc):
 def initialize_func_unit_keys(pen_type):
     
     func_unit = {}
-    db = lca_init.db
+    db = init.db
     for pt in pen_type:
         for act in db:
             if f"Penicillin {pt}" in str(act['name']) and "defined system" in str(act['name']):
@@ -100,10 +97,10 @@ def initialize_func_unit_keys(pen_type):
     
     return func_unit
 
-def create_func_unit():
-    system_path = lca_init.system_path
-    dm.import_databases(sensitivty=True)
-    sheets_to_import = dm.extract_excel_sheets()
+def create_func_unit(sensitivty=False):
+    system_path = init.system_path
+    init.import_databases(sensitivty)
+    sheets_to_import = init.extract_excel_sheets()
     
     func_unit = initialize_func_unit_keys(pen_type)
 
@@ -142,7 +139,7 @@ def perform_LCIA_countries_sens(func_unit, calc=False):
                 for dct in fu:
                     idx_lst.append(list(dct.keys())[0])
                 idx_lst.sort
-                ics = lca_init.lcia_impact_method()                
+                ics = init.lcia_impact_method()                
                 # Set up and perform the LCA calculation
                 bd.calculation_setups[str(country)] = {'inv': fu, 'ia': [ics[1]]}
                     
@@ -228,7 +225,7 @@ def category_sorting():
     return pen_contries_cat_dct
 
 def results_sorting(func_unit, elec_val_V, elec_val_G, calc):
-    save_dir = s.results_folder(lca_init.results_path, "sensitivity")
+    save_dir = s.results_folder(init.results_path, "sensitivity")
     df_res_dct = {}
     if calc:
         df_dct = perform_LCIA_countries_sens(func_unit, calc)
@@ -260,25 +257,20 @@ def results_sorting(func_unit, elec_val_V, elec_val_G, calc):
     
     return df_res_dct
 
-# Function to set font sizes for plots
-def figure_font_sizes():
-    plt.rcParams.update({
-        'font.size': 12,      # General font size
-        'axes.titlesize': 14, # Title font size
-        'axes.labelsize': 12, # Axis labels font size
-        'legend.fontsize': 10 # Legend font size
-    }) 
 
-def countries_sens_plot(calc=False):
+def countries_sens_plot(calc=False, sensitivity=False):
     width = 0.5
     
-    func_unit, elec_val_G, elec_val_V = create_func_unit()
+    func_unit, elec_val_G, elec_val_V = create_func_unit(sensitivity)
     
     df_res_dct = results_sorting(func_unit, elec_val_V, elec_val_G, calc)
     title_identifier = [r"$\bf{Fig\ A:}$ ", r"$\bf{Fig\ B:}$ "]
-    plot_save_path = s.join_path(lca_init.path_github, r"figures")
+    
+    plot_save_path = s.join_path(init.path_github, r"figures")
+    
     width_in, height_in, dpi = s.plot_dimensions(subfigure=True)
     fig, axes = plt.subplots(1, len(df_res_dct.keys()), figsize=(width_in*1.9, height_in), dpi=dpi)
+
     for p, (pen, df) in enumerate(df_res_dct.items()):
         colors = s.color_range(colorname="coolwarm", color_quantity=len(df.index))
         df.T.plot(

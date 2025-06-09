@@ -6,7 +6,7 @@ import pandas as pd
 
 import standards as s
 
-from lca import LCA
+from Libaries.main import LCA
 
 path = r'C:/Users/ruw/Desktop'
 matching_database = "ev391cutoff"
@@ -56,13 +56,6 @@ def reload_database(proj_database, sheet, reload):
 
         import_excel_database_to_brightway(data)
 
-    # elif user_input.lower() == 'n':
-    #     pass
-
-    # else:
-    #     print('Invalid argument, try again')
-    #     user_input = input("Do you want to reload the databases? [y/n] (y for yes and n for no)")
-    #     reload_database(proj_database, sheet, user_input)
 
 reload_database.has_been_called = False
 
@@ -106,10 +99,8 @@ def is_db_in_project(sheets_to_import):
 
 def import_databases(reload=False, sensitivty=False):
     # Check if Ecoinvent databases are already present
-    if lca_init.matching_database in bd.databases:# and 'ev391apos' in bd.databases and 'ev391cutoff' in bd.databases:
-        pass
-    else:
-        # Import Consequential database
+    if lca_init.matching_database not in bd.databases:
+        # Import Ecoinvent database
         ei = bi.SingleOutputEcospold2Importer(dirpath=lca_init.ecoinevnt_paths[matching_database], db_name=matching_database)
         ei.apply_strategies()
         ei.statistics()
@@ -118,6 +109,7 @@ def import_databases(reload=False, sensitivty=False):
     sheets_to_import = extract_excel_sheets()
 
     if sensitivty is False:
+        # Extracting the first sheet only
         sheets_to_import = sheets_to_import[0]
 
     data = pd.read_excel(lca_init.system_path, sheet_name=sheets_to_import)
@@ -213,7 +205,7 @@ def create_new_bs3_activities(df):
     
     return codes
 
-def filtered_lcia_methods():
+def ecotoxicity_impact_category():
     # Get all methods related to ReCiPe 2016 midpoint/endpoint (H) without biogenic
     midpoint_method = [m for m in bw.methods if 'ReCiPe 2016 v1.03, midpoint (H) - no biogenic' in str(m) and 'no LT' not in str(m)]
     endpoint_method = [m for m in bw.methods if 'ReCiPe 2016 v1.03, endpoint (H) - no biogenic' in str(m) and 'no LT' not in str(m)]
@@ -227,7 +219,7 @@ def filtered_lcia_methods():
 
 def add_activity_to_biosphere3(df, act_dct):
     # Filter methods related to ecotoxicity
-    ecotoxicity_methods = filtered_lcia_methods()
+    ecotoxicity_methods = ecotoxicity_impact_category()
     
     # Iterate over each method in ecotoxicity_methods
     for method in ecotoxicity_methods:
@@ -264,8 +256,8 @@ def add_activity_to_biosphere3(df, act_dct):
         except Exception as e:
             print(f"An error occurred while processing {method[1]}: {e}")
 
-def add_new_biosphere_activities(bw_project, path):
-    path_github, ecoinevnt_paths, system_path = s.data_paths(path)
+def add_new_biosphere_activities(bw_project):
+    path_github = lca_init.path_github
 
     # Set the current Brightway2 project
     bd.projects.set_current(bw_project)
@@ -275,16 +267,16 @@ def add_new_biosphere_activities(bw_project, path):
     df = pd.read_excel(data_path, index_col=0)
     
     # Create new biosphere activities and get their codes
-    codes = create_new_bs3_activities(df)
+    activity_codes = create_new_bs3_activities(df)
 
     # Load the biosphere3 database
     biosphere3 = bw.Database('biosphere3')
 
     act_dct = {}
     # Map the new activities to their names
-    for c in codes.values():
+    for code in activity_codes.values():
         for bs3 in biosphere3:
-            if c in bs3[1]:
+            if code in bs3[1]:
                 act_dct[bs3['name']] = bs3
 
     # Add the new activities to the biosphere3 database
@@ -292,7 +284,7 @@ def add_new_biosphere_activities(bw_project, path):
 
 
 
-def database_setup(path, matching_database, bw_project="Penicillin", reload=False, sensitivty=False):
+def database_setup(matching_database, bw_project="Penicillin", reload=False, sensitivty=False):
     import_excel_database_to_brightway.has_been_called = False
 
     # Set the current Brightway project
@@ -313,4 +305,4 @@ def database_setup(path, matching_database, bw_project="Penicillin", reload=Fals
             import_databases(reload, sensitivty)
 
     if reload_database.has_been_called is False:
-        add_new_biosphere_activities(bw_project, path)
+        add_new_biosphere_activities(bw_project)

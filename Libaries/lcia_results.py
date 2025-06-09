@@ -4,14 +4,13 @@ import pandas as pd
 
 # Importing self-made libraries
 from standards import *
-# from life_cycle_assessment import *
 from results_figures import *
-from lca import LCA
+import main as m
 
 path = r'C:/Users/ruw/Desktop'
 matching_database = "ev391cutoff"
 
-lca_init = LCA(path=path,matching_database=matching_database)
+lca_init = m.main(path=path,matching_database=matching_database)
 
 def extract_func_unit():
     db = lca_init.db
@@ -134,51 +133,6 @@ def obtain_LCIA_results(calc):
     return df
 
 
-
-# def quick_LCIA(sheet_name, reload=False, calc=False):
-#     """
-#     Perform a quick Life Cycle Impact Assessment (LCIA) calculation.
-
-#     Parameters:
-#     initialization (tuple): Contains database project, database name, flows, LCIA method, and database type.
-#     file_name (str): The name of the file to save the results.
-#     file_name_unique (str): The name of the file to save unique process results.
-#     sheet_name (str): The name of the sheet to save the results.
-
-#     Returns:
-#     tuple: DataFrame with LCIA results, list of impact categories for plotting, list of impact categories, DataFrame with unique process results.
-#     """
-#     functional_unit = lca_init.LCA_initialization(reload=reload)
-
-    
-#     unique_process_index = []
-#     unique_process = []
-
-#     # Identify unique processes
-#     for exc in functional_unit.values():
-#         for proc in exc.keys():
-#             if str(proc) not in unique_process_index:
-#                 unique_process_index.append(str(proc))
-#                 unique_process.append(proc)
-    
-#     unique_process_index.sort()
-
-#     unique_func_unit = []
-#     for upi in unique_process_index:
-#         for proc in unique_process:
-#             if upi == f'{proc}':
-#                 unique_func_unit.append({proc: 1})
-
-#     impact_categories = lca_init.lcia_impact_method()
-
-#     # Obtain a shortened version of the impact categories for the plots
-#     plot_x_axis_all = [0] * len(impact_categories)
-#     for i in range(len(plot_x_axis_all)):
-#         plot_x_axis_all[i] = impact_categories[i][2]
-
-#     df = lcia_dataframe_handling(sheet_name, unique_process_index, unique_func_unit, calc=calc)
-
-#     return df
 
 
 
