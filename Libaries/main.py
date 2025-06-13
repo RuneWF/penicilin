@@ -320,7 +320,6 @@ class main():
         except ValueError:
             print(data.columns[1])
     
-
     def reload_database(self, proj_database, sheet, reload):
         self.reload_database_has_been_called = True
         if reload:
@@ -395,7 +394,6 @@ class main():
                     self.extract_database(df, reload, sheet)
             else:
                 print("Wrong data format")
-
 
     def remove_bio_co2_recipe(self):
         all_methods = [m for m in bw.methods if 'ReCiPe 2016 v1.03, midpoint (H)' in str(m) and 'no LT' not in str(m)] # Midpoint
@@ -576,7 +574,6 @@ class main():
         if self.reload_database_has_been_called is False:
             self.add_new_biosphere_activities(self.bw_project)
 
-
     def remove_empty_rows(self, df):
         temp = df.isna()
 
@@ -649,4 +646,7 @@ class main():
 
         with pd.ExcelWriter(lci_table_path, engine='xlsxwriter') as writer:
             for act, df in dct.items():
-                df.to_excel(writer, sheet_name=act[:31], index=False)
+                sheet_name = act
+                if len(act) > 30:
+                    sheet_name = act[:29] + " " + act[-1]
+                df.to_excel(writer, sheet_name=sheet_name, index=False)

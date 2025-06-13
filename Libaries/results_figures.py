@@ -186,7 +186,8 @@ def data_set_up(reload=False, calc=False, sensitivity=False):
 
     # Perform quick LCIA (Life Cycle Impact Assessment) and get the results
     df = obtain_LCIA_results(calc)
-    save_totals_to_excel(df)
+    if calc:
+        save_totals_to_excel(df)
 
     # Process the data
     df_res = init.dataframe_results_handling(df)
@@ -206,14 +207,6 @@ def data_set_up(reload=False, calc=False, sensitivity=False):
     print_min_max_val(df_scaled_mid)
 
     return [df_scaled_mid, df_scaled_end, df_GWP, df_mid, df_endpoint]
-
-# def plot_text_size():
-#     plt.rcParams.update({
-#     'font.size': 12,      # General font size
-#     'axes.titlesize': 14, # Title font size
-#     'axes.labelsize': 12, # Axis labels font size
-#     'legend.fontsize': 11 # Legend font size
-#     }) 
 
 def mid_end_legend_text(df):
     leg_idx = []

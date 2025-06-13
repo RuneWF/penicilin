@@ -767,7 +767,7 @@ def sens_EoL_plot(calc=False):
     df.T.plot(
         kind='bar',
         stacked=True,
-        title="GWP for different EoL for auxillary product for peniciilin G",
+        title="GWP for different MWT for auxillary product for peniciilin G",
         color=colors,
         ax=ax,
         width=width,
@@ -795,12 +795,14 @@ def sens_EoL_plot(calc=False):
         )
 
     ax.set_ylabel('kilograms of CO$_2$-eq per treatment')
-
+    y_ticks = np.linspace(-0.3, 1, 14)
+    ax.set_yticks(y_ticks)
+    ax.set_ylim(-0.3, 1.01)
     ax.set_xticklabels(xtick_txt, rotation=0)
     ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
     plt.tight_layout()
     plot_save_path = init.join_path(init.path_github, r"figures")
-    output_file = init.join_path(plot_save_path, f"penG_EoL_seninit.png")
+    output_file = init.join_path(plot_save_path, f"penG_EoL_sens.png")
     plt.savefig(output_file, dpi=dpi, format='png', bbox_inches='tight')
     plt.show()
 

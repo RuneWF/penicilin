@@ -257,6 +257,15 @@ def results_sorting(func_unit, elec_val_V, elec_val_G, calc):
     
     return df_res_dct
 
+def set_y_ticks(p, ax):
+    if p == 0:
+        y_ticks = np.linspace(0, 1, 11)
+        ax.set_yticks(y_ticks)
+        ax.set_ylim(0, 1.01)
+    else:
+        y_ticks = np.linspace(0, 0.06, 7)
+        ax.set_yticks(y_ticks)
+        ax.set_ylim(0, 0.0601)
 
 def countries_sens_plot(calc=False, sensitivity=False):
     width = 0.5
@@ -290,6 +299,8 @@ def countries_sens_plot(calc=False, sensitivity=False):
         xtick_txt = []
         for col in df.columns:
             xtick_txt.append(col[-2:])
+
+        set_y_ticks(p, axes[p])
 
         axes[p].set_xticklabels(xtick_txt, rotation=0)
         axes[p].grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
