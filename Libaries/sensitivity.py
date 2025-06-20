@@ -7,14 +7,7 @@ import os
 import matplotlib.pyplot as plt
 from scipy import stats
 
-from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-import matplotlib.image as mpimg
-import seaborn as sns
-
-# import standards as s
-# import database as dm
 import sensitvity_countries as stc
-import sensitivity_EoL as eol
 
 import main as m
 

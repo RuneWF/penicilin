@@ -6,10 +6,10 @@ import bw2data as bd
 import brightway2 as bw
 import bw2calc as bc
 import pandas as pd
+from copy import deepcopy as dc
 
 
 # import life_cycle_assessment as lc
-import lcia_results as lr
 # from standards import *
 # import database as dm
 
@@ -228,6 +228,32 @@ def mid_end_figure_title(recipe):
 
     return title_txt
 
+def results_normalization(calc):
+    df = obtain_LCIA_results(calc)
+    df_T = df.T
+    idx_lst = df_T.index
+
+    df_T = df_T.drop(idx_lst[-3:])
+    idx_lst = df_T.index
+    
+    nf_excel_path = init.join_path(init.path_github,r"data\ReCiPe_2016_Normalization_Factors.xlsx")
+
+    nf_df = pd.read_excel(io=nf_excel_path, index_col=0)
+    nf_df.index = idx_lst
+
+    df_T_nf = dc(df_T)
+    for col in df_T.columns:
+        for idx, row in df_T_nf.iterrows():
+            row[col] /= nf_df.at[idx, "Value"]
+            row[col] *= pow(10,3)
+
+            if "HTPc" in str(idx[2]):
+                print(f"{idx[2]} = {row[col]}")
+
+    df_nf = df_T_nf.T
+
+    return df_nf
+
 def midpoint_graph(df, plot_x_axis):
     recipe = 'Midpoint (H)'
     colors = init.color_range(colorname="coolwarm", color_quantity=2)
@@ -242,6 +268,7 @@ def midpoint_graph(df, plot_x_axis):
     bar_width = 1 / (len(index_list) + 1)
     index = np.arange(len(columns_to_plot))
 
+
     # Plot each group of bars
     for i, process in enumerate(df.index):
         values = df.loc[process, columns_to_plot].values
@@ -253,6 +280,7 @@ def midpoint_graph(df, plot_x_axis):
             #    hatch="///",
                edgecolor="k",
                zorder=10)
+
 
     # Set title and labels
     ax.set_title(mid_end_figure_title(recipe)+" results for 1 treatment")  
@@ -283,12 +311,84 @@ def midpoint_graph(df, plot_x_axis):
     plt.savefig(output_file, dpi=dpi, format='png', bbox_inches='tight')
     plt.show()
 
+def midpoint_normalized_graph(calc, plot_x_axis):
+    colors = init.color_range(colorname="coolwarm", color_quantity=2)
+
+    df = results_normalization(calc)
+
+    # Extract columns and indices for plotting
+    columns_to_plot = df.columns
+    index_list = list(df.index.values)
+
+    # Create the plot
+    width_in, height_in, dpi = init.plot_dimensions()
+
+    fig, (ax, ax2) = plt.subplots(2,1, sharex=True, figsize=(width_in, height_in), dpi=dpi)
+    bar_width = 1 / (len(index_list) + 1)
+    index = np.arange(len(columns_to_plot))
+    axes = [ax, ax2]
+    # Plot each group of bars
+    for a in axes:
+        for i, process in enumerate(df.index):
+            values = df.loc[process, columns_to_plot].values
+            color = colors[i % len(colors)]  # Ensure color cycling
+            a.bar(index + i * bar_width, 
+                values, bar_width, 
+                label=process, 
+                color=color,
+                edgecolor="k",
+                zorder=10)
+    
+        a.set_xticks(index + bar_width * (len(index_list) - 1) / 2)
+        a.set_xticklabels(plot_x_axis, rotation=90)
+    x_pos = 0.92  
+    fig.legend(
+        mid_end_legend_text(df),
+        loc='upper left',
+        bbox_to_anchor=(0.775, x_pos),
+        ncol= 1,
+        fontsize=10,
+        frameon=False
+    )
+    # Center y-labels for both axes
+    ax.set_ylabel('miliPerson equivalent per treatment', labelpad=20, va='center')
+    # ax2.set_ylabel('miliPerson equivalent per treatment', labelpad=20, va='center')
+    ax.yaxis.set_label_coords(-0.08, 0)
+    ax.set_title("Normalization results for 1 treatment")  
+    # zoom-in / limit the view to different portions of the data
+    ax.set_ylim(1, 7.1)  # outliers only
+    ax.set_yticks(np.arange(2, 8, 1))  # Set y-ticks from 1 to 7 in steps of 1
+
+    ax2.set_ylim(0, 0.55)  # most of the data
+    ax2.set_yticks(np.arange(0, 0.6, 0.1))
+
+    # hide the spines between ax and ax2
+    ax.spines.bottom.set_visible(False)
+    ax2.spines.top.set_visible(False)
+    ax.xaxis.tick_top()
+    ax.tick_params(labeltop=False)
+    ax2.xaxis.tick_bottom()
+
+    # Minimize the distance of the slanted lines
+    d = 0.5  # smaller value for less distance
+    kwargs = dict(marker=[(-1, -d), (1, d)], markersize=4,
+                  linestyle="none", color='k', mec='k', mew=1, clip_on=False)
+    ax.plot([0, 1], [0, 0], transform=ax.transAxes, **kwargs)
+    ax2.plot([0, 1], [1, 1], transform=ax2.transAxes, **kwargs)
+
+    output_file = init.join_path(
+        init.path_github,
+        r'figures\normalized_results_midpoint.png'
+    )
+
+    plt.tight_layout()
+    plt.savefig(output_file, dpi=dpi, format='png', bbox_inches='tight')
+    plt.show()
+
 def create_results_figures(reload=False, calc=False):
     # Set the current Brightway project
     bw_project = init.bw_project
     bd.projects.set_current(bw_project)
-
-    folder = init.results_folder(init.path_github, "figures")
 
     impact_categories = init.lcia_impact_method()
     plot_x_axis_all = [0] * len(impact_categories)
@@ -311,5 +411,6 @@ def create_results_figures(reload=False, calc=False):
     data = data_set_up(reload=reload, calc=calc)
     
     midpoint_graph(data[0], plot_x_axis_mid)
+    midpoint_normalized_graph(calc, plot_x_axis_mid)
 
     return data
