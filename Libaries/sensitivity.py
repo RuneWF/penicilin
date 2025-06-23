@@ -259,6 +259,14 @@ def sensitivity_legend(col_sens, idx, leg):
     else:
         leg.append("Baseline")
 
+def penicillin_G_V_to_IV_oral(pen_type):
+    if "G" in pen_type:
+        # txt = idx.replace(f", defined system", "")
+        return "IV"
+    else:
+        return "Oral"
+
+
 # Function to plot sensitivity analysis results
 def sensitivity_plot(pen_stat_tot):
      
@@ -286,7 +294,7 @@ def sensitivity_plot(pen_stat_tot):
         ax.set_xticks(x)
         ax.set_xticklabels(df.index, rotation=0)
         ax.set_ylabel('grams of CO$_2$-eq per treatment')
-        ax.set_title(f'{title_identifier[marker]}GWP for manufacturing of penicillin {pen_type[-1]}', loc="left")
+        ax.set_title(f'{title_identifier[marker]}GWP for manufacturing of {penicillin_G_V_to_IV_oral(pen_type)} treatment', loc="left")
         if pen_type[-1] == "V":
             y = np.arange(30, 43, 2)
             ax.set_yticks(y)
@@ -328,8 +336,15 @@ def monte_carlo_plot(stat_arr_dct, base=10, power=4):
 
     plt.xlabel('grams of CO$_2$-eq per treatment')
     plt.ylabel('Probability')
-    plt.title('Monte Carlo simulation of the GWP for penicillin materials & manufacturing*')
-    plt.legend(loc='upper right', frameon=False)
+    plt.title('Monte Carlo simulation of the GWP for penicillin materials & manufacturing')
+
+    leg_color, _ = plt.gca().get_legend_handles_labels()
+
+    plt.legend(
+        leg_color,
+        ["IV", "Oral"],
+        loc='upper right', 
+        frameon=False)
     
 
     ax = plt.gca()
@@ -348,268 +363,6 @@ def monte_carlo_plot(stat_arr_dct, base=10, power=4):
     data2 = arr_lst[1]
     t_stat, p_value = stats.ttest_ind(data1, data2)
     print(f"T-statistic: {t_stat}, P-value: {p_value}")
-
-def extract_fu_penG_contribution():
-    db = init.db
-    func_unit = []
-    idx_lst = []
-    for act in db:
-        if "defined system" in act["name"] and "G" in act["name"]:
-
-            for exc in act.exchanges():
-                if "techno" in exc["type"]:
-                    func_unit.append({exc.input : exc["amount"]})
-                    idx_lst.append(exc.input)
-    return func_unit, idx_lst
-
-def extract_penG_actvitites():
-    data = init.initialization()
-    fu_all = data["Penicillin G, defined system"]
-
-    fu_sep = []
-    for key, item in fu_all.items():
-        fu_sep.append({key : item})
-
-    fu_sep = []
-    idx_lst = []
-
-    scaling_dct = treatment_quantity()
-
-    for key, item in fu_all.items():
-        if "glass vials" in str(key):
-
-            fu_sep.append({key : item})
-            idx_lst.append(key)
-            for act in init.db:
-                if "penicillium G" in str(act):
-                    fu_sep.append({act : scaling_dct["manufacturing of raw penicillium G"]})
-                    idx_lst.append(str(act))
-        else:
-            fu_sep.append({key : item})
-            idx_lst.append(str(key))
-
-    return fu_sep, idx_lst
-
-def substract_penGprod(df_contr):
-    penG_idx = None
-    vial_idx = None
-
-    for idx in df_contr.index:
-        if "packaging of glass vials with penicillin G" in str(idx):
-            vial_idx = idx
-        elif "manufacturing of raw penicillium G" in str(idx):
-            penG_idx = idx
-
-    for col in df_contr.columns:
-        df_contr.at[vial_idx, col] = df_contr.at[vial_idx, col] - df_contr.at[penG_idx, col]
-    
-    return df_contr
-
-def contribution(contr_excel_path):
-    func_unit, idx_lst = extract_penG_actvitites()
-    calc_setup_name = str("PenG contrinbution")
-    bd.calculation_setups[calc_setup_name] = {'inv': func_unit, 'ia': init.lcia_impact_method()}
-    mylca = bc.MultiLCA(calc_setup_name)
-    res = mylca.results
-    df_contr = pd.DataFrame(0, index=idx_lst, columns=init.lcia_impact_method(), dtype=object)
-
-    # Store results in DataFrame
-    for col, arr in enumerate(res):
-        for row, val in enumerate(arr):
-            df_contr.iat[col, row] = val
-
-    df_contr = substract_penGprod(df_contr)
-
-    df_contr_share = dc(df_contr)
-
-    for col in df_contr_share.columns:
-        tot = df_contr_share[col].to_numpy().sum()
-        for _, row in df_contr_share.iterrows():
-            row[col] /= tot
-
-    init.save_LCIA_results(df_contr_share, contr_excel_path, sheet_name="contribution")
-
-    return df_contr_share
-
-def contribution_LCIA_calc(calc):
-    contr_excel_path = init.join_path(folder(), "penG_contribution.xlsx")
-    if os.path.isfile(contr_excel_path):
-        # user_input = input("Select y for recalculate or n to import calculated results")
-        if calc:
-            df_contr_share = contribution(contr_excel_path)
-        else:
-            df_contr_share = init.import_LCIA_results(contr_excel_path, init.lcia_impact_method())
- 
-    else:
-        df_contr_share = contribution(contr_excel_path)
-
-    return df_contr_share
-
-def act_to_string_simplification(text):
-    if type(text) is not str:
-        text = str(text)
-
-    if "glass vials" in text.lower():
-        text = "glass vial"
-    if "wipe" in text.lower():
-        text = "wet wipe"
-    if "gloves" in text.lower():
-        text = "gloves"
-    if "incineration" in text.lower():
-        text = "incineration"
-    if "packaging paper" in text.lower():
-        text = "packaging"
-    if "iv bag" in text.lower():
-        text = "IV bag"
-    if "stopcock" in text.lower():
-        text = "stopcock"
-    if "water" in text.lower():
-        text = "ultrapure water"
-    if "medical connector" in text.lower():
-        text = "medical connector"
-    if "sodium chlorate" in text.lower():
-        text = "sodium chlorate"
-    if "penicillium g" in text.lower():
-        text = "penicillium G"
-
-    return text
-
-def data_reorginization(df_contr_share):
-    iv_liquid_row = 0
-    new_idx = "IV liquid"
-    df_temp = dc(df_contr_share)
-    
-    for idx, row in df_temp.iterrows():
-        try:
-            if "market" in str(idx):
-                iv_liquid_row += row
-                df_temp.drop([idx], inplace=True)
-        except IndexError:
-            print(f"keyerror for {idx}")
-
-    df_temp.loc[new_idx] = iv_liquid_row # adding a row
-    
-    return df_temp
-
-def contribution_analysis_data_sorting(calc):
-    pen_comp_cat = {
-        "Prod.": ["penicil", "vial"],
-        "Aux. mat.": ["wipe", "glove"],
-        "IV": ["stopcock", "water", "sodium", " connector", "IV"],
-        "Disposal": ["waste"]
-        }
-
-    pen_cat_sorted = {}
-    leg_txt = []
-
-    df_contr_share_raw = contribution_LCIA_calc(calc)
-    df_contr_share = data_reorginization(df_contr_share_raw)
-
-    for cat, id_lst in pen_comp_cat.items():
-        pen_cat_sorted[cat] = []
-        for id in id_lst:
-            for idx in df_contr_share.index:
-                if id in str(idx) and idx not in pen_cat_sorted[cat]:
-                    pen_cat_sorted[cat].append(idx)
-                    txt = act_to_string_simplification(idx)
-                    if txt not in leg_txt:
-                        leg_txt.append(f"{cat}: {txt}")
-    return df_contr_share, pen_cat_sorted, leg_txt
-
-def lcia_categories():
-    ic_idx = [1, -3, -2, -1]
-    ic_plt = []
-    for ic in ic_idx:
-        ic_plt.append(init.lcia_impact_method()[ic])
-
-    return ic_plt
-
-def contribution_results_to_dct(calc):
-    dct = {}
-    dct_tot = {}
-    ic_plt = lcia_categories()
-    df_contr_share, pen_cat_sorted, leg_txt = contribution_analysis_data_sorting(calc)
-    for ic in ic_plt:
-        dct[ic] = {}
-        dct_tot[ic] = {}
-        temp_dct = {}
-        
-        for cat, act_lst in pen_cat_sorted.items():
-            temp_dct[cat] = {}
-            tot = 0
-            
-            for act in act_lst:
-                val = df_contr_share.at[act, ic]
-                tot += val
-                temp_dct[cat].update({act : val})
-            
-        dct[ic].update(temp_dct)
-    
-    return dct, leg_txt
-
-def text_for_x_axis():
-    return ("GWP", "Ecosystem\n damage", "Human health\n damage", "Natural \nresources damage")
-
-def hatch_styles():
-    return ["\\\\", "OO", "++", "**", "O."]
-
-def penG_contribution_plot(calc):
-    output_file_contr = r"C:\Users\ruw\Desktop\RA\penicilin\figures\penG_contribution.png"
-    width = 0.5
-    
-    dct, leg_txt = contribution_results_to_dct(calc)
-    bottom = np.zeros(len(dct.keys()))
-
-    colors = init.color_range(colorname="coolwarm", color_quantity=len(dct.keys()))
-    width_in, height_in, dpi = init.plot_dimensions()
-    fig, ax = plt.subplots(figsize=(width_in, height_in), dpi=dpi)
-    for idx, dct_ in enumerate(dct.values()):
-        for col_idx, item_dct in enumerate(dct_.values()):
-            for hatch, (act, item) in enumerate(item_dct.items()):
-                ax.bar(
-                    text_for_x_axis()[idx], 
-                    item, 
-                    width, 
-                    label=str(act), 
-                    bottom=bottom[idx],
-                    color=colors[col_idx],
-                    edgecolor="k", 
-                    hatch=hatch_styles()[hatch],
-                    alpha=.9,
-                    zorder=10
-                )
-
-                bottom[idx] += item
-
-    ax.set_title("Contribution analysis for 1 treatment with Penicillin G")
-
-    leg_color, _ = fig.gca().get_legend_handles_labels()
-    
-    # Reverse the order of handles and labels
-    leg_txt = leg_txt[::-1]
-    leg_color = leg_color[::-1]
-
-    # ax.set_xticklabels(text_for_x_axis(), rotation=0)
-
-    ax.legend(
-            leg_color,
-            leg_txt,
-            loc='upper left',
-            bbox_to_anchor=(0.995, 1.02),
-            ncol= 1,  # Adactjust the number of columns based on legend size
-            fontsize=10,
-            frameon=False
-        )
-    ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
-    ax.set_ylabel("Share of the impact")
-    y_ticks = plt.gca().get_yticks()
-    ax.set_yticks(y_ticks)
-    ax.set_yticklabels(['{:.0f}%'.format(y * 100) for y in y_ticks])
-    ax.set_ylim(0,1.01)
-    plt.tight_layout()
-    plt.savefig(output_file_contr, dpi=300, format='png', bbox_inches='tight')
-    plt.show()
-
 
 def obtain_func_unit():
     func_unit_recycling = {}
@@ -708,7 +461,6 @@ def obtain_results(calc):
 
     return df
 
-
 def legend_set_up(df, fig, ax, xtick_txt):
     tot_impact = {col : df[col].to_numpy().sum() for col in df.columns} 
 
@@ -760,7 +512,7 @@ def sens_EoL_plot(calc=False):
     df.T.plot(
         kind='bar',
         stacked=True,
-        title="GWP for different MWT for auxillary product for peniciilin G",
+        title="GWP for different MWT for auxillary product for IV treatment",
         color=colors,
         ax=ax,
         width=width,
@@ -809,10 +561,10 @@ def perform_sens_uncert_analysis(mc_base=10, mc_power=4, reload=False, calc=Fals
     stat_arr_dct, pen_stat_tot = calc_senstivity_values(pen_compact_df, pen_compact_idx, tot_df)
     sensitivity_plot(pen_stat_tot)
     monte_carlo_plot(stat_arr_dct, mc_base, mc_power)
-    penG_contribution_plot(calc)
+    
 
-
-    stc.countries_sens_plot(calc)
     sens_EoL_plot(calc)
+    stc.countries_sens_plot(calc)
+    
 
 

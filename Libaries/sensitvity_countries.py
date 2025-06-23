@@ -267,6 +267,13 @@ def set_y_ticks(p, ax):
         ax.set_yticks(y_ticks)
         ax.set_ylim(0, 0.0601)
 
+def penicillin_G_V_to_IV_oral(pen_type):
+    if "G" in pen_type:
+        # txt = idx.replace(f", defined system", "")
+        return "IV"
+    else:
+        return "Oral"
+
 def countries_sens_plot(calc=False, sensitivity=False):
     width = 0.5
     
@@ -280,7 +287,7 @@ def countries_sens_plot(calc=False, sensitivity=False):
     width_in, height_in, dpi = s.plot_dimensions(subfigure=True)
     fig, axes = plt.subplots(1, len(df_res_dct.keys()), figsize=(width_in*1.9, height_in), dpi=dpi)
 
-    for p, (pen, df) in enumerate(df_res_dct.items()):
+    for p, df in enumerate(df_res_dct.values()):
         colors = s.color_range(colorname="coolwarm", color_quantity=len(df.index))
         df.T.plot(
             kind='bar',
@@ -293,7 +300,7 @@ def countries_sens_plot(calc=False, sensitivity=False):
             zorder=10
         )
 
-        axes[p].set_title(f"{title_identifier[p]}GWP for 1 treatment with penicillin {pen_type[p]}", loc="left")
+        axes[p].set_title(f"{title_identifier[p]}GWP for 1 {penicillin_G_V_to_IV_oral(pen_type[p])} treatment", loc="left")
         axes[p].set_ylabel('kilograms of CO$_2$-eq per treatment')
 
         xtick_txt = []
