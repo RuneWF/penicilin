@@ -294,7 +294,7 @@ def sensitivity_plot(pen_stat_tot):
         ax.set_xticks(x)
         ax.set_xticklabels(df.index, rotation=0)
         ax.set_ylabel('grams of CO$_2$-eq per treatment')
-        ax.set_title(f'{title_identifier[marker]}GWP for manufacturing of {penicillin_G_V_to_IV_oral(pen_type)} treatment', loc="left")
+        ax.set_title(f'{title_identifier[marker]}GWP for manufacturing of Penicillin {pen_type[-1]}', loc="left")
         if pen_type[-1] == "V":
             y = np.arange(30, 43, 2)
             ax.set_yticks(y)
