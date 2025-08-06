@@ -8,25 +8,25 @@ import bw2calc as bc
 import pandas as pd
 from copy import deepcopy as dc
 
-from sensitivity import treatment_quantity
-
 import main as m
 
-path = r'C:/Users/ruw/Desktop'
-matching_database = "ev391cutoff"
+init = m.main()
 
-init = m.main(path=path,matching_database=matching_database)
-
-
-def extract_func_unit():
+def extract_func_unit(act_key_term="defined system"):
     db = init.db
     func_unit = []
     idx_lst = []
     func_unit_keys = []
     for act in db:
-        if "defined system" in act["name"]:
-            idx_lst.append(act["name"])
-            func_unit_keys.append(act)
+        # Support act_key_term as a string or a list/Series of strings
+        if isinstance(act_key_term, (list, tuple, pd.Series, np.ndarray)):
+            if any(term in act["name"] for term in act_key_term):
+                idx_lst.append(act["name"])
+                func_unit_keys.append(act)
+        else:
+            if act_key_term in act["name"]:
+                idx_lst.append(act["name"])
+                func_unit_keys.append(act)
     func_unit_keys.sort()
     func_unit_keys.reverse()
     idx_lst.sort()
@@ -57,6 +57,7 @@ def perform_LCIA():
     # Ensure impact categories is a list
     if isinstance(impact_categories, tuple):
         impact_categories = list(impact_categories)
+
     func_unit, idx_lst = extract_func_unit()
     # Initialize DataFrame to store results
     df = pd.DataFrame(0, index=idx_lst, columns=impact_categories, dtype=object)
@@ -74,35 +75,23 @@ def perform_LCIA():
             df.iat[col, row] = val
 
     # Save results to file
-    init.save_LCIA_results(df, init.file_name)
+    init.save_LCIA_results(df, init.LCIA_results)
 
     return df
 
 def obtain_LCIA_results(calc):
     
-    file_name = init.file_name
+    LCIA_results = init.LCIA_results
 
     # Check if the file exists
-    if os.path.isfile(file_name):
-        try:
-            if calc:
-                df = perform_LCIA()
-        
-        except (ValueError, KeyError, TypeError) as e:
-            print(e)
-            # Perform LCIA if there is an error in importing results
-            df = perform_LCIA()
-    
-    else:
-        print(f"{file_name} do not exist, but will be created now")
+    if os.path.isfile(LCIA_results) or calc is False:
+        df = init.import_LCIA_results(LCIA_results, init.lcia_impact_method())
+
+    elif os.path.isfile(LCIA_results) is False or calc:
         # Perform LCIA if file does not exist
         df = perform_LCIA()
-
-    # Import LCIA results if user chooses 'n'
-    if calc is False:
-        df = init.import_LCIA_results(file_name, init.lcia_impact_method())
-        
- 
+        save_totals_to_excel(df)
+       
     return df
 
 def endpoint_new_name():
@@ -123,12 +112,9 @@ def obtain_impact_category_units():
             method = bw.Method(m)
             unit = method.metadata.get('unit', 'No unit found')
             impact_cat_unit_dct[str(m[2]).capitalize()] = unit
-            # print(f"Method: {m[2]}, Unit: {unit}")
         elif 'ReCiPe 2016 v1.03, endpoint (H) - no biogenic' in str(m) and 'no LT' not in str(m):
             method = bw.Method(m)
             unit = method.metadata.get('unit', 'No unit found')
-            
-
             impact_cat_unit_dct[endpoints_new_name[end_counter]] = unit
             end_counter += 1
             
@@ -164,44 +150,6 @@ def save_totals_to_excel(df):
 
     init.save_LCIA_results(df_tot_T, file_path_tot)
 
-def print_min_max_val(scaled_df):
-    min_val = None
-    max_val = 0
-    for col in scaled_df.columns:
-        for _, row in scaled_df.iterrows():
-            val = row[col]
-            if min_val is None or val < min_val:
-                min_val = val
-            elif val != 1 and val > max_val:
-                max_val = val
-    print(f"Mininum valúe : {min_val}, Maximum value : {max_val}")
-
-def data_set_up(reload=False, calc=False, sensitivity=False):
-    init.database_setup(reload=reload, sensitivty=sensitivity)
-
-    # Perform quick LCIA (Life Cycle Impact Assessment) and get the results
-    df = obtain_LCIA_results(calc)
-    if calc:
-        save_totals_to_excel(df)
-
-    # Process the data
-    df_res = init.dataframe_results_handling(df)
-
-    if type(df_res) is list:
-        df_mid, df_endpoint = df_res
-    # Scale the data for midpoint and endpoint
-    df_scaled_mid = init.dataframe_cell_scaling(df_mid)
-    
-    # if 'recipe' in lcia_method.lower():
-    df_scaled_end = init.dataframe_cell_scaling(df_endpoint)
-
-    # Extract the GWP (Global Warming Potential) column
-    df_col = [df_mid.columns[1]]
-    df_GWP = df_mid[df_col]
-    
-    print_min_max_val(df_scaled_mid)
-
-    return [df_scaled_mid, df_scaled_end, df_GWP, df_mid, df_endpoint]
 
 def mid_end_legend_text(df):
     leg_idx = []
@@ -215,7 +163,6 @@ def mid_end_legend_text(df):
             leg_idx.append(txt)
 
     return leg_idx
-
 
 def results_normalization(calc):
     df = obtain_LCIA_results(calc)
@@ -236,69 +183,9 @@ def results_normalization(calc):
             row[col] /= nf_df.at[idx, "Value"]
             row[col] *= pow(10,3)
 
-            if "HTPc" in str(idx[2]):
-                print(f"{idx[2]} = {row[col]}")
-
     df_nf = df_T_nf.T
 
     return df_nf
-
-def midpoint_graph(df, plot_x_axis):
-    recipe = 'Midpoint (H)'
-    colors = init.color_range(colorname="coolwarm", color_quantity=2)
-
-    # Extract columns and indices for plotting
-    columns_to_plot = df.columns
-    index_list = list(df.index.values)
-
-    # Create the plot
-    width_in, height_in, dpi = init.plot_dimensions()
-    fig, ax = plt.subplots(figsize=(width_in, height_in), dpi=dpi)
-    bar_width = 1 / (len(index_list) + 1)
-    index = np.arange(len(columns_to_plot))
-
-
-    # Plot each group of bars
-    for i, process in enumerate(df.index):
-        values = df.loc[process, columns_to_plot].values
-        color = colors[i % len(colors)]  # Ensure color cycling
-        ax.bar(index + i * bar_width, 
-               values, bar_width, 
-               label=process, 
-               color=color,
-            #    hatch="///",
-               edgecolor="k",
-               zorder=10)
-
-
-    # Set title and labels
-    ax.set_title(mid_end_figure_title(recipe)+" results for 1 treatment")  
-    ax.set_xticks(index + bar_width * (len(index_list) - 1) / 2)
-    ax.set_xticklabels(plot_x_axis, rotation=90)  # Added rotation here
-    ax.set_yticks(np.arange(0, 1 + 0.001, step=0.1))
-    
-    y_ticks = plt.gca().get_yticks()
-    ax.set_yticks(y_ticks)
-    ax.set_yticklabels(['{:.0f}%'.format(y * 100) for y in y_ticks])
-    x_pos = 0.94
-
-    fig.legend(
-        mid_end_legend_text(df),
-        loc='upper left',
-        bbox_to_anchor=(0.975, x_pos),
-        ncol= 1,  # Adjust the number of columns based on legend size
-        fontsize=10,
-        frameon=False
-    )
-    ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
-    # Save the plot with high resolution
-    output_file = init.join_path(
-        init.path_github,
-        f'figures\{recipe}.png'
-    )
-    plt.tight_layout()
-    plt.savefig(output_file, dpi=dpi, format='png', bbox_inches='tight')
-    plt.show()
 
 def midpoint_normalized_graph(calc, plot_x_axis):
     colors = init.color_range(colorname="coolwarm", color_quantity=2)
@@ -340,14 +227,13 @@ def midpoint_normalized_graph(calc, plot_x_axis):
         frameon=False,
     )
     
-    
     # Center y-labels for both axes
     ax.set_ylabel('miliPerson equivalent per treatment', labelpad=20, va='center')
-    # ax2.set_ylabel('miliPerson equivalent per treatment', labelpad=20, va='center')
     ax.yaxis.set_label_coords(-0.08, 0)
     ax.set_title("Normalization results for 1 treatment")  
+
     # zoom-in / limit the view to different portions of the data
-    ax.set_ylim(0.8, 7.1)  # outliers only
+    ax.set_ylim(0.8, 7.1)  # Larger values
     ax.set_yticks(np.arange(2, 8, 1))  # Set y-ticks from 1 to 7 in steps of 1
 
     ax2.set_ylim(0, 0.55)  # most of the data
@@ -359,9 +245,6 @@ def midpoint_normalized_graph(calc, plot_x_axis):
     ax.xaxis.tick_top()
     ax.tick_params(labeltop=False)
     ax2.xaxis.tick_bottom()
-
-    # plt.axhline(0.75, linestyle='--',zorder=10)
-
 
     # Minimize the distance of the slanted lines
     d = 0.5  # smaller value for less distance
@@ -396,7 +279,6 @@ def extract_fu_penG_contribution():
     return func_unit
 
 def extract_penG_actvitites():
-    
     fu_all_dct = extract_fu_penG_contribution()
     fu_all = fu_all_dct["Penicillin G, defined system"]
     fu_sep = []
@@ -406,7 +288,7 @@ def extract_penG_actvitites():
     fu_sep = []
     idx_lst = []
 
-    scaling_dct = treatment_quantity()
+    scaling_dct = init.treatment_quantity()
 
     for key, item in fu_all.items():
         if "glass vials" in str(key):
@@ -423,7 +305,7 @@ def extract_penG_actvitites():
 
     return fu_sep, idx_lst
 
-def substract_penGprod(df_contr):
+def substract_pen_G_production(df_contr):
     penG_idx = None
     vial_idx = None
 
@@ -438,7 +320,7 @@ def substract_penGprod(df_contr):
     
     return df_contr
 
-def contribution(contr_excel_path):
+def pen_G_contribution(contr_excel_path):
     func_unit, idx_lst = extract_penG_actvitites()
     calc_setup_name = str("PenG contrinbution")
     bd.calculation_setups[calc_setup_name] = {'inv': func_unit, 'ia': init.lcia_impact_method()}
@@ -451,7 +333,7 @@ def contribution(contr_excel_path):
         for row, val in enumerate(arr):
             df_contr.iat[col, row] = val
 
-    df_contr = substract_penGprod(df_contr)
+    df_contr = substract_pen_G_production(df_contr)
 
     df_contr_share = dc(df_contr)
 
@@ -466,15 +348,11 @@ def contribution(contr_excel_path):
 
 def contribution_LCIA_calc(calc):
     contr_excel_path = init.join_path(init.results_path, r"LCIA\penG_contribution.xlsx")
-    if os.path.isfile(contr_excel_path):
-        # user_input = input("Select y for recalculate or n to import calculated results")
-        if calc:
-            df_contr_share = contribution(contr_excel_path)
-        else:
-            df_contr_share = init.import_LCIA_results(contr_excel_path, init.lcia_impact_method())
+    if os.path.isfile(contr_excel_path) or calc is False:
+        df_contr_share = init.import_LCIA_results(contr_excel_path, init.lcia_impact_method())
  
-    else:
-        df_contr_share = contribution(contr_excel_path)
+    elif os.path.isfile(contr_excel_path) is False or calc:
+        df_contr_share = pen_G_contribution(contr_excel_path)
 
     return df_contr_share
 
@@ -510,19 +388,19 @@ def act_to_string_simplification(text):
 def data_reorginization(df_contr_share):
     iv_liquid_row = 0
     new_idx = "IV liquid"
-    df_temp = dc(df_contr_share)
+    df_contr_share_copy = dc(df_contr_share)
     
-    for idx, row in df_temp.iterrows():
+    for idx, row in df_contr_share_copy.iterrows():
         try:
             if "market" in str(idx):
                 iv_liquid_row += row
-                df_temp.drop([idx], inplace=True)
+                df_contr_share_copy.drop([idx], inplace=True)
         except IndexError:
             print(f"keyerror for {idx}")
 
-    df_temp.loc[new_idx] = iv_liquid_row # adding a row
+    df_contr_share_copy.loc[new_idx] = iv_liquid_row # adding a row
     
-    return df_temp
+    return df_contr_share_copy
 
 def contribution_analysis_data_sorting(calc):
     pen_comp_cat = {
@@ -558,7 +436,7 @@ def lcia_categories():
 
     return ic_plt
 
-def contribution_results_to_dct(calc):
+def pen_G_contribution_results_to_dct(calc):
     dct = {}
     dct_tot = {}
     ic_plt = lcia_categories()
@@ -610,7 +488,7 @@ def penG_contribution_plot(calc):
     output_file_contr = r"C:\Users\ruw\Desktop\RA\penicilin\figures\penG_contribution.png"
     width = 0.5
     
-    dct, leg_txt = contribution_results_to_dct(calc)
+    dct, leg_txt = pen_G_contribution_results_to_dct(calc)
     dct_sorted = sort_act_in_production(dct)
     bottom = np.zeros(len(dct.keys()))
 
@@ -647,8 +525,6 @@ def penG_contribution_plot(calc):
     leg_txt = leg_txt[::-1]
     leg_color = leg_color[::-1]
 
-    # ax.set_xticklabels(text_for_x_axis(), rotation=0)
-
     ax.legend(
             leg_color,
             leg_txt,
@@ -667,8 +543,10 @@ def penG_contribution_plot(calc):
     plt.tight_layout()
     plt.savefig(output_file_contr, dpi=300, format='png', bbox_inches='tight')
     plt.show()
+ 
 
 def create_results_figures(reload=False, calc=False):
+    init.database_setup(reload=reload)
     # Set the current Brightway project
     bw_project = init.bw_project
     bd.projects.set_current(bw_project)
@@ -691,10 +569,6 @@ def create_results_figures(reload=False, calc=False):
             string[0] = 'GWP'
         plot_x_axis_mid.append(string[0])
     
-    data = data_set_up(reload=reload, calc=calc)
-    
-    # midpoint_graph(data[0], plot_x_axis_mid)
     midpoint_normalized_graph(calc, plot_x_axis_mid)
     penG_contribution_plot(calc)
 
-    return data

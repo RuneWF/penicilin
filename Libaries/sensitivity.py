@@ -11,40 +11,10 @@ import sensitvity_countries as stc
 
 import main as m
 
-path = r'C:/Users/ruw/Desktop'
-matching_database = "ev391cutoff"
-
-init = m.main(path=path,matching_database=matching_database)
+init = m.main()
 
 
-# Function to calculate treatment quantities based on scaling factors from an Excel file
-def treatment_quantity():
-    # Use a context manager to open the Excel file
-    with pd.ExcelFile(init.system_path) as excel_file:
-        # Get the sheet names
-        sheet_names = excel_file.sheet_names
-    
-    scaling_sheet = ""
-    for sheet in sheet_names:
-        if "scaling" in sheet:
-            scaling_sheet = sheet
 
-    # Read the treatment quantity data from the second sheet
-    df_treatment_quantity = pd.read_excel(io=init.system_path, sheet_name=scaling_sheet)
-    scaling_dct = {}
-    for act in init.db:
-        # Filter activities related to penicillin
-        if "filling of glass vial" in act['name'] or "tablet" in act['name']:
-            for exc in act.exchanges():
-                # Match exchanges with penicillin types
-                if "penicillium " in exc.input["name"]:
-                    for pen_type in df_treatment_quantity.columns:
-                        for _, row in df_treatment_quantity.iterrows():
-                            if pen_type in exc["name"]:
-                                # Calculate scaling factors
-                                scaling_dct[exc["name"]] = exc["amount"] * row[pen_type]
-
-    return scaling_dct
 
 # Function to obtain activities and their exchanges from the database
 def obtain_activities():
@@ -52,11 +22,10 @@ def obtain_activities():
     proc_check = {}
 
     # Get scaling factors
-    scaling_dct = treatment_quantity()
-
+    scaling_dct = init.treatment_quantity()
     for act in init.db:
         # Filter activities related to penicillin
-        if "penicillium" in act['name']:
+        if "penicillium" in str(act['name']):
             pencillium_fu[act["name"]] = []
             proc_check[act["name"]] = []
             for exc in act.exchanges():
@@ -72,8 +41,7 @@ def obtain_activities():
 
 # Function to create and return the results folder path
 def folder():
-    sens_folder = rf"{init.results_path}\results"
-    save_dir = init.results_folder(sens_folder, "sensitivity")
+    save_dir = init.results_folder(init.results_path, "sensitivity")
     return save_dir
 
 # Function to generate file paths for sensitivity results
@@ -85,6 +53,28 @@ def sensitivity_paths(pen_type, save_dir):
     
     return sens_file_path
 
+def LCIA(pen_type, proc_check, method_GWP, pen_fu, pen_df, file_path):
+    print(f"Performing LCIA for {pen_type}")
+
+    # Initialize a DataFrame to store sensitivity results
+    df_sens = pd.DataFrame(0, index=proc_check[pen_type], columns=[method_GWP[1]], dtype=object)
+
+    # Set up the calculation environment for sensitivity analysis
+    bd.calculation_setups['Sensitivity'] = {'inv': pen_fu, 'ia': [method_GWP]}
+
+    # Perform the MultiLCA calculation
+    sens_res = bc.MultiLCA('Sensitivity')
+    sens_results_array = sens_res.results
+    
+    # Store results in the DataFrame
+    for idx, res in enumerate(sens_results_array):
+        df_sens.iat[idx, 0] = res
+
+    # Save the results to the dictionary and export to an Excel file
+    pen_df[pen_type] = df_sens
+    init.save_LCIA_results(df_sens, file_path[pen_type])
+
+
 # Function to calculate or import sensitivity results
 def calculate_sensitivity_results(pencillium_fu, proc_check, calc=False):
     # Get the LCIA method and results folder
@@ -92,35 +82,20 @@ def calculate_sensitivity_results(pencillium_fu, proc_check, calc=False):
     save_dir = folder()
     file_path = {pen_type: sensitivity_paths(pen_type, save_dir) for pen_type in pencillium_fu.keys()}
     pen_df = {}
-
-    if calc:
+    
+    
         # Perform LCIA calculations if calc is True
-        for pen_type, pen_fu in pencillium_fu.items():
-            print(f"Performing LCIA for {pen_type}")
+    for pen_type, pen_fu in pencillium_fu.items():
+        if os.path.isfile(file_path[pen_type]) and calc is False:
+            for pen_type, excel_path in file_path.items():
+                temp = init.import_LCIA_results(excel_path, method_GWP)
+                temp.columns = [method_GWP[1]]  # Rename columns for consistency
+                pen_df[pen_type] = temp
+        elif calc:
+            LCIA(pen_type, proc_check, method_GWP, pen_fu, pen_df, file_path)
+        else:
+            LCIA(pen_type, proc_check, method_GWP, pen_fu, pen_df, file_path)
 
-            # Initialize a DataFrame to store sensitivity results
-            df_sens = pd.DataFrame(0, index=proc_check[pen_type], columns=[method_GWP[1]], dtype=object)
-
-            # Set up the calculation environment for sensitivity analysis
-            bd.calculation_setups['Sensitivity'] = {'inv': pen_fu, 'ia': [method_GWP]}
-
-            # Perform the MultiLCA calculation
-            sens_res = bc.MultiLCA('Sensitivity')
-            sens_results_array = sens_res.results
-            
-            # Store results in the DataFrame
-            for idx, res in enumerate(sens_results_array):
-                df_sens.iat[idx, 0] = res
-
-            # Save the results to the dictionary and export to an Excel file
-            pen_df[pen_type] = df_sens
-            init.save_LCIA_results(df_sens, file_path[pen_type], "results")
-    else:
-        # Import pre-calculated LCIA results if calc is False
-        for pen_type, excel_path in file_path.items():
-            temp = init.import_LCIA_results(excel_path, method_GWP)
-            temp.columns = [method_GWP[1]]  # Rename columns for consistency
-            pen_df[pen_type] = temp
     
     return pen_df
 
@@ -266,9 +241,17 @@ def penicillin_G_V_to_IV_oral(pen_type):
     else:
         return "Oral"
 
+def sens_data_initialization(reload, sensitivty, calc):
+    init.database_setup(reload=reload, sensitivty=sensitivty)
+    pencillium_fu, proc_check = obtain_activities()
+    pen_df = calculate_sensitivity_results(pencillium_fu, proc_check, calc)
+    pen_compact_df, tot_df, pen_compact_idx = compacting_penicillium_dataframes(pen_df)
+    stat_arr_dct, pen_stat_tot = calc_senstivity_values(pen_compact_df, pen_compact_idx, tot_df)
+
+    return [stat_arr_dct, pen_stat_tot]
 
 # Function to plot sensitivity analysis results
-def sensitivity_plot(pen_stat_tot):
+def sensitivity_plot(reload, sensitivty, calc):
      
     colors = init.color_range(colorname="coolwarm", color_quantity=5)
     colors.reverse()
@@ -276,6 +259,9 @@ def sensitivity_plot(pen_stat_tot):
     output_file_sens = rf"{init.path_github}\figures\senstivity.png"
 
     col_sens, _ = organize_sensitivity_scenarios()
+
+    pen_stat_tot = sens_data_initialization(reload, sensitivty, calc)[1]
+
     pen_stat_tot_sorted = sort_dict_keys(pen_stat_tot)
     width_in, height_in, dpi = init.plot_dimensions(subfigure=True)
     _, axes = plt.subplots(1, len(pen_stat_tot_sorted), figsize=(width_in*1.9, height_in), dpi=dpi)
@@ -313,9 +299,12 @@ def sensitivity_plot(pen_stat_tot):
     plt.show()
 
 # Function to perform Monte Carlo simulation and plot results
-def monte_carlo_plot(stat_arr_dct, base=10, power=4):
+def monte_carlo_plot(reload, sensitivty, calc, base=10, power=4):
     
     output_file_MC = rf"{init.path_github}\figures\monte_carlo.png"
+
+    stat_arr_dct = sens_data_initialization(reload, sensitivty, calc)[0]
+
     data_proccessing_dct = calc_mean_std(stat_arr_dct)
     data_proccessing_dct_sorted = sort_dict_keys(data_proccessing_dct)
 
@@ -387,77 +376,84 @@ def obtain_func_unit():
 
     return func_unit_recycling_sorted
 
+def LCIA_eol(excel_path):
+    ics = init.lcia_impact_method()     
+    pen_arr = []         
+    func_unit = obtain_func_unit()  
+    # Set up and perform the LCA calculation
+    for scenario, fu in func_unit.items():
+        bd.calculation_setups[str(scenario)] = {'inv': fu, 'ia': [ics[1]]}
+            
+        mylca = bc.MultiLCA(str(scenario))
+        res = mylca.results
+        pen_arr.append(res)    
+
+    res_countries_dct = {}
+    for lst_idx, (scenario, fu) in enumerate(func_unit.items()):
+        res_countries_dct[scenario] = {}
+        for arr_idx, dct in enumerate(fu):
+            temp = {}
+            for act in dct.keys():  
+                val = pen_arr[lst_idx][arr_idx][0]
+                if arr_idx == 0:
+                    act_0 = act
+                    val_0 = val
+                    temp[act_0] = val_0
+                else:
+                    val_0 -= val
+                    temp[act_0] = val_0
+                    temp[act] =  val
+                res_countries_dct[scenario].update(temp)
+    res_countries_dct
+
+    idx_lst = [
+    "Other",
+    "Incineration",
+    "Recycling",
+    "Avoided"
+    ]
+
+    df = pd.DataFrame(0, index=idx_lst, columns=res_countries_dct.keys(), dtype=object)
+
+    for scenario in df.columns:
+        print(scenario)
+        for idx, row in df.iterrows():
+            for act, val in res_countries_dct[scenario].items():
+                if idx.lower() in str(act):
+                    row[scenario] = val
+
+                elif "Penicillin G" in str(act) and idx_lst[0] in idx:
+                    row[scenario] = val
+
+
+    df.index = [
+    "Cradle to Hospital",
+    "Incineration",
+    "Recycling",
+    "Avoided",
+    ]
+
+    init.save_LCIA_results(df,file_name=excel_path)
+
+    return df 
+
 def obtain_results(calc):
-    excel_path = init.join_path(init.results_path, r"results\sensitivity\sens_eol_penG.xlsx")
+    save_dir = init.results_folder(init.results_path,"sensitivity")
+    excel_path = init.join_path(save_dir, r"sens_eol_penG.xlsx")
     func_unit = obtain_func_unit() 
-    if calc:
-        ics = init.lcia_impact_method()     
-        pen_arr = []         
-        func_unit = obtain_func_unit()  
-        # Set up and perform the LCA calculation
-        for scenario, fu in func_unit.items():
-            bd.calculation_setups[str(scenario)] = {'inv': fu, 'ia': [ics[1]]}
-                
-            mylca = bc.MultiLCA(str(scenario))
-            res = mylca.results
-            pen_arr.append(res)    
-
-        res_countries_dct = {}
-        for lst_idx, (scenario, fu) in enumerate(func_unit.items()):
-            res_countries_dct[scenario] = {}
-            for arr_idx, dct in enumerate(fu):
-                temp = {}
-                for act in dct.keys():  
-                    val = pen_arr[lst_idx][arr_idx][0]
-                    if arr_idx == 0:
-                        act_0 = act
-                        val_0 = val
-                        temp[act_0] = val_0
-                    else:
-                        val_0 -= val
-                        temp[act_0] = val_0
-                        temp[act] =  val
-                    res_countries_dct[scenario].update(temp)
-        res_countries_dct
-
-        idx_lst = [
-        "Other",
-        "Incineration",
-        "Recycling",
-        "Avoided"
-        ]
-
-        df = pd.DataFrame(0, index=idx_lst, columns=res_countries_dct.keys(), dtype=object)
-
-        for scenario in df.columns:
-            print(scenario)
-            for idx, row in df.iterrows():
-                for act, val in res_countries_dct[scenario].items():
-                    if idx.lower() in str(act):
-                        row[scenario] = val
-
-                    elif "Penicillin G" in str(act) and idx_lst[0] in idx:
-                        row[scenario] = val
-
-
-        df.index = [
-        "Cradle to Hospital",
-        "Incineration",
-        "Recycling",
-        "Avoided",
-        ]
-
-        init.save_LCIA_results(df,file_name=excel_path, sheet_name="EoL")
+    if os.path.isfile(excel_path):
+        if calc:
+            df = LCIA_eol(excel_path) 
+        else:
+            df = init.import_LCIA_results(excel_path, list(func_unit.keys()))
+            df.index = [
+                "Cradle to Hospital",
+                "Incineration",
+                "Recycling",
+                "Avoided",
+            ]
     else:
-        df = init.import_LCIA_results(excel_path, list(func_unit.keys()))
-        df.index = [
-            "Cradle to Hospital",
-            "Incineration",
-            "Recycling",
-            "Avoided",
-        ]
-    
-       
+        df = LCIA_eol(excel_path)
 
     return df
 
@@ -551,20 +547,100 @@ def sens_EoL_plot(calc=False):
     plt.savefig(output_file, dpi=dpi, format='png', bbox_inches='tight')
     plt.show()
 
+def clinical_treatment_initialization():
+    df = init.import_LCIA_results(init.LCIA_results, init.lcia_impact_method())
+    ic_gwp = init.lcia_impact_method()[1]
+    df_gwp = df[ic_gwp]
+    idx_gwp = list(df_gwp.index)
+
+    idx_lst = [
+    "IV",
+    "Oral",
+    "Combined"
+    ]
+
+    df_pneumonia = pd.DataFrame(0, index=idx_lst, columns=[ic_gwp], dtype=object)
+
+    days = 5
+    daily_adminstrations = 4
+    adminstrations = days * daily_adminstrations
+
+    days_com_dct = {
+        idx_lst[0] : 2,
+        idx_lst[1] : 3
+    }
+
+
+    for idx, row in df_pneumonia.iterrows():
+        if "IV" in idx:
+            row[ic_gwp] = df_gwp.at[idx_gwp[0]] * adminstrations
+        elif "Oral" in idx:
+            row[ic_gwp] = df_gwp.at[idx_gwp[1]] * adminstrations
+        else:
+            dct = {}
+            for x, (key, item) in enumerate(days_com_dct.items()):
+                dct[key] = df_gwp.at[idx_gwp[x]] * item * daily_adminstrations
+            row[ic_gwp] = dct
+
+    iv_impact = df_pneumonia.at[idx_lst[0], ic_gwp]
+    oral_impact = df_pneumonia.at[idx_lst[1], ic_gwp]
+    comb_impact_dct  = df_pneumonia.at[idx_lst[2], ic_gwp]
+    comb_impact_lst = np.array(list(comb_impact_dct.values()))
+    comb_impact = comb_impact_lst.sum()
+
+    print(f"{idx_lst[1]} saves {round((1-oral_impact/iv_impact)*100,0)}%")
+    print(f"{idx_lst[2]} saves {round((1-comb_impact/iv_impact)*100,0)}%")
+
+    return idx_lst, df_pneumonia
+
+def clinical_treatment_plot():
+    idx_lst, df_pneumonia = clinical_treatment_initialization()
+
+    # Create the plot
+    colors = init.color_range(colorname="coolwarm", color_quantity=2)
+    width_in, height_in, dpi = init.plot_dimensions()
+    _, ax = plt.subplots(figsize=(width_in, height_in), dpi=dpi)
+    bar_width = 1 / (len(idx_lst) + 1)
+
+    # Plot individual bars for the first two scenarios
+    for i in range(2):
+        ax.bar(i, df_pneumonia.iloc[i, 0], bar_width, color=colors[i], edgecolor='k', label=df_pneumonia.index[i], zorder=2)
+
+    # Plot stacked bar for the third scenario
+    stack_data = df_pneumonia.iloc[2, 0]
+    bottom = 0
+    for j, value in enumerate(stack_data.values()):
+        ax.bar(2, value, bar_width, bottom=bottom, color=colors[j], edgecolor='k', label=idx_lst[j],  zorder=2)
+        bottom += value
+
+    # Customize the plot
+    ax.set_xticks([0, 1, 2])
+    ax.set_xticklabels(df_pneumonia.index)
+    ax.set_ylabel('kilograms of CO$_2$-eq per treatment')
+    ax.set_title("GWP for clinical treatment scenarios of pneumonia")
+    y_ticks = np.linspace(0, 20, 11)
+    ax.set_yticks(y_ticks)
+    ax.set_ylim(0, 20.01)
+    ax.legend(
+        labels=idx_lst[:2], 
+        frameon=False)
+    ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
+    plt.tight_layout()
+    plot_save_path = init.join_path(init.path_github, r"figures")
+    output_file = init.join_path(plot_save_path, f"treatment_of_pneumonia.png")
+    plt.savefig(output_file, dpi=dpi, format='png', bbox_inches='tight')
+    plt.show()
+
+        
 
 # Main function to perform sensitivity and uncertainty analysis
 def perform_sens_uncert_analysis(mc_base=10, mc_power=4, reload=False, calc=False, sensitivty=False):
-    init.database_setup(reload=reload, sensitivty=sensitivty)
-    pencillium_fu, proc_check = obtain_activities()
-    pen_df = calculate_sensitivity_results(pencillium_fu, proc_check, calc)
-    pen_compact_df, tot_df, pen_compact_idx = compacting_penicillium_dataframes(pen_df)
-    stat_arr_dct, pen_stat_tot = calc_senstivity_values(pen_compact_df, pen_compact_idx, tot_df)
-    sensitivity_plot(pen_stat_tot)
-    monte_carlo_plot(stat_arr_dct, mc_base, mc_power)
-    
 
+    sensitivity_plot(reload, sensitivty, calc)
+    monte_carlo_plot(reload, sensitivty, calc, mc_base, mc_power)
     sens_EoL_plot(calc)
-    stc.countries_sens_plot(calc)
+    stc.countries_sens_plot(calc, sensitivty)
+    clinical_treatment_plot()
     
 
 

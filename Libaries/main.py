@@ -1,3 +1,4 @@
+# Importing libaries to perform the code
 import pandas as pd
 from copy import deepcopy as dc
 import re
@@ -5,29 +6,19 @@ import os
 import ast
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 # Import BW25 packages
 import bw2data as bd
 import brightway2 as bw 
 import bw2io as bi
 
-# # Importing self-made libraries
-# import database as d
 
 class main():
     # initialization of all the required parameters
-    def __init__(self, path, matching_database, lcia_meth='recipe', bw_project="Penicillin"):
-        """
-        Initialize the LCA class with the given parameters.
-        
-        :param path: Path to the data directory
-        :param matching_database: Name of the matching database
-        :param database_name: Name of the database
-        :param lcia_meth: LCIA method (default is 'recipe')
-        :param bw_project: Brightway project name (default is 'Penicillin')
-        """
-        self.path = path
-        self.path_github, self.ecoinevnt_paths, self.system_path, self.results_path = self.data_paths()
+    def __init__(self, desktop_name="Desktop", matching_database="ev391cutoff", bw_project="Penicillin"):
+        self.desktop_path = Path.home() / desktop_name
+        self.path_github, self.system_path, self.results_path = self.data_paths()
         self.matching_database = matching_database
         self.bw_project = bw_project
         bd.projects.set_current(self.bw_project)
@@ -36,16 +27,15 @@ class main():
         self.database_name = self.db_excel.columns[1]
         
         self.db = bd.Database(self.database_name)
-        self.lcia_meth = lcia_meth
        
 
         self.data_info = []
         self.flow = []
 
         # Store the flow and other information in the respective dictionaries
-        self.dir_temp = self.results_folder(self.results_path, "LCIA")
-        self.file_name = self.join_path(self.dir_temp, "LCIA_results.xlsx")
-        self.file_name_unique_process = self.join_path(self.dir_temp, "LCIA_results_unique.xlsx")
+        self.LCIA_folder = self.results_folder(self.results_path, "LCIA")
+        self.LCIA_results = self.join_path(self.LCIA_folder, "LCIA_results.xlsx")
+        self.LCIA_results_unique_process = self.join_path(self.LCIA_folder, "LCIA_results_unique.xlsx")
 
         # LCIA method variable
         self.all_methods = []
@@ -69,6 +59,7 @@ class main():
     def lcia_impact_method(self):
         
         self.remove_bio_co2_recipe()
+        # Obtaining the midpoint categories and ignoring land transformation
         midpoint_method = [m for m in bw.methods if 'ReCiPe 2016 v1.03, midpoint (H) - no biogenic' in str(m) and 'no LT' not in str(m)] # Midpoint
 
         # Obtaining the endpoint categories and ignoring land transformation
@@ -79,55 +70,6 @@ class main():
 
         # Returning the selected LCIA methods
         return self.all_methods
-
-    # Function to initialize parameters for the LCIA calculations
-    def LCA_initialization(self, reload=False, sensitivity=False):
-        # Setting up an empty dictionary with the flows as the key
-        self.database_setup(reload=reload, sensitivty=sensitivity)
-        procces_keys = {key: None for key in self.flow}
-
-        size = len(self.flow)
-        
-        # Iterate over the database to find matching processes
-        for act in self.db:
-            for proc in range(size):
-                if act['name'] == self.flow[proc]:
-                    procces_keys[act['name']] = act['code']
-
-        process = []
-
-        # Obtaining all the subprocesses in a list 
-        for key, item in procces_keys.items():
-            try:
-                process.append(self.db.get(item))
-            except KeyError:
-                print(f"Process with key '{item}' not found in the database '{self.db}'")
-                process = None
-        
-        # Obtaining the impact categories for the LCIA calculations
-        
-        product_details = {}
-        product_details_code = {}
-
-        # Obtaining the subprocesses
-        if process:
-            for proc in process:
-                product_details[proc['name']] = []
-                product_details_code[proc['name']] = []
-
-                for exc in proc.exchanges():
-                    if exc['type'] == 'technosphere' or ('Use' in exc.output['name'] and exc['type'] == 'biosphere'):
-                        product_details[proc['name']].append({exc.input['name']: [exc['amount'], exc.input]})
-            
-        # Creating the Functional Unit (FU) to calculate for
-        self.func_unit = {key: {} for key in product_details.keys()}
-        for key, item in product_details.items():
-            for idx in item:
-                for m in idx.values():
-                    self.func_unit[key].update({m[1]: m[0]})
-        
-        print(f'Initialization is completed for {self.database_name}')
-        return self.func_unit
 
     # Function to seperate the midpoint and endpoint results for ReCiPe
     def recipe_dataframe_split(self, df):
@@ -142,63 +84,38 @@ class main():
 
     # Function to create two dataframes, one where each subprocess' in the process are summed 
     # and the second is scaling the totals in each column to the max value
-    def dataframe_cell_scaling(self, df):
+    # def dataframe_cell_scaling(self, df):
 
-        df_cols = df.columns
-        df_cols = df_cols.to_list()
+    #     df_cols = df.columns
+    #     df_cols = df_cols.to_list()
 
-        df_scaled = dc(df)
+    #     df_scaled = dc(df)
 
-        # Obtaing the scaled value of each LCIA results in each column to the max
-        for i in df_cols:
-            scaling_factor = max(abs(df_scaled[i]))
-            for _, row in df_scaled.iterrows():
-                row[i] /= scaling_factor
+    #     # Obtaing the scaled value of each LCIA results in each column to the max
+    #     for i in df_cols:
+    #         scaling_factor = max(abs(df_scaled[i]))
+    #         for _, row in df_scaled.iterrows():
+    #             row[i] /= scaling_factor
 
-        return df_scaled
+    #     return df_scaled
 
-    def x_label_text(self):
-        impact_categories = self.lcia_impact_method()
-         # Extract the endpoint categories from the plot x-axis
-        self.impact_categories_end = impact_categories[-3:]
-        
-        # Extract the midpoint categories from the plot x-axis
-        ic_mid = impact_categories[:-3]
-        if 'recipe' in self.lcia_meth.lower():
-            # Process each midpoint category to create a shortened version for the plot x-axis
-            for ic in ic_mid:
-                string = re.findall(r'\((.*?)\)', ic)
-                if 'ODPinfinite' in string[0]:
-                    string[0] = 'ODP'
-                elif '1000' in string[0]:
-                    string[0] = 'GWP'
-                self.impact_categories_mid.append(string[0])
+    # def dataframe_results_handling(self, df):
+    #     # Rearrange the dataframe index based on the database name
 
-        return self.impact_categories_mid, self.impact_categories_end
+    #     # Split the dataframe into midpoint and endpoint results
+    #     self.df_midpoint, self.df_endpoint = self.recipe_dataframe_split(df)
 
-    def dataframe_results_handling(self, df):
-        # Rearrange the dataframe index based on the database name
-
-        # Check if the LCIA method is ReCiPe
-        if 'recipe' in self.lcia_meth.lower():
-            # Split the dataframe into midpoint and endpoint results
-            self.df_midpoint, self.df_endpoint = self.recipe_dataframe_split(df)
-
-            # Return the processed dataframes and plot x-axis labels
-            return [self.df_midpoint, self.df_endpoint]
-
-        else:
-            # Return the processed dataframe
-            return df
+    #     # Return the processed dataframes and plot x-axis labels
+    #     return [self.df_midpoint, self.df_endpoint]
 
 
     # Function to create a results folder with a specified path and name
-    def results_folder(self, path, name, db=None):
+    def results_folder(self, path, name, database_name=None):
         # Determine the save directory and folder name based on the presence of a database name
-        if db:
-            save_dir = f'{path}/{name}_{db}'
+        if database_name:
+            save_dir = Path(f'{path}/{name}_{database_name}')
         else:
-            save_dir = f'{path}/{name}'
+            save_dir = Path(f'{path}/{name}')
 
         try:
             # Check if the directory already exists
@@ -211,25 +128,25 @@ class main():
         
         except (OSError, FileExistsError) as e:
             # Handle potential UnboundLocalError
-            print('Error occurred')
+            print(f'Error occurred : {e}')
         return save_dir
 
-    def join_path(self, path1, path2):
-        return os.path.join(path1, path2)
+    def join_path(self, path1, *argv):
+        path = Path(path1)
+        for arg in argv:
+            path = path / arg
+        return path
 
     def data_paths(self):
         # Path to where the code is stored
-        main_folder_path = self.join_path(self.path, r'RA\penicilin')
+        current_directory = str(Path.cwd())
+        main_folder_path = Path(current_directory.replace(f"\{str(Path.cwd().name)}",""))
 
-        ecoinevnt_paths = {'ev391apos' : self.join_path(self.path, r"4. semester\EcoInvent\ecoinvent 3.9.1_apos_ecoSpold02\datasets"),
-                        'ev391consq' :   self.join_path(self.path, r"4. semester\EcoInvent\ecoinvent 3.9.1_consequential_ecoSpold02\datasets"),
-                        'ev391cutoff' :  self.join_path(self.path, r"4. semester\EcoInvent\ecoinvent 3.9.1_cutoff_ecoSpold02\datasets")}
-        
         database_path = self.join_path(main_folder_path, r'data\database.xlsx')
 
-        results_path = self.join_path(self.path, r'RA\penicillin results')
+        results_path = self.join_path(self.desktop_path, r'RA\penicillin_results')
         
-        return main_folder_path, ecoinevnt_paths, database_path, results_path
+        return main_folder_path, database_path, results_path
 
     # saving the LCIA results to excel
     def save_LCIA_results(self, df, file_name):
@@ -237,9 +154,9 @@ class main():
             df.to_excel(writer, index=True, header=True)
 
     # Function to import the LCIA results from excel
-    def import_LCIA_results(self, file_name, impact_category):
-        if type(impact_category) == tuple:
-            impact_category = [impact_category]
+    def import_LCIA_results(self, file_name, columns):
+        if type(columns) == tuple:
+            columns = [columns]
         
         # Reading from Excel
         df = pd.read_excel(io=file_name, index_col=0)
@@ -254,7 +171,7 @@ class main():
                     row[col] = float(cell_value)
         try:
             # Updating column names
-            df.columns = impact_category
+            df.columns = columns
         except ValueError:
             pass
 
@@ -287,15 +204,13 @@ class main():
 
         return width_in, height_in, dpi
     
-
     def import_excel_database_to_brightway(self, data):
         # Save the data to a temporary file that can be used by ExcelImporter
-        temp_path = self.join_path(self.path_github, r"data\temp.xlsx")
+        temp_path = self.join_path(self.path_github, r"data\LCI_temp.xlsx")
 
         data.to_excel(temp_path, index=False)
-        
-        # Use the temporary file with ExcelImporter
         try:
+            print("database name = ", data.columns[1])
             imp = bi.ExcelImporter(temp_path)  # the path to your inventory excel file
             imp.apply_strategies()
         
@@ -315,12 +230,13 @@ class main():
             # Print unlinked items if needed
             if unlinked_items:
                 print(unlinked_items)
-
+            print("database name = ",data.columns[1])
             self.import_excel_database_to_brightway_has_been_called = True
+            
         except ValueError:
             print(data.columns[1])
     
-    def reload_database(self, proj_database, sheet, reload):
+    def reload_database(self, proj_database, reload, sheet):
         self.reload_database_has_been_called = True
         if reload:
             
@@ -348,7 +264,6 @@ class main():
         proj_database_str = data.columns[1]
         if proj_database_str not in bd.databases:
             self.import_excel_database_to_brightway(data)
-
         # Reload databases if needed
         self.reload_database(proj_database_str, reload, sheet)
 
@@ -367,11 +282,23 @@ class main():
 
         return import_db
 
+    def import_ecoinvent_database(self):
+        ecoinevnt_term = {
+            'ev391apos' : r"ecoinvent 3.9.1_apos_ecoSpold02\datasets",
+            'ev391consq' :  r"ecoinvent 3.9.1_consequential_ecoSpold02\datasets",
+            'ev391cutoff' :  r"ecoinvent 3.9.1_cutoff_ecoSpold02\datasets"
+            }
+        
+        
+        base_path = Path.home()
+
+        return list(base_path.rglob(ecoinevnt_term[self.matching_database]))[0]
+    
     def import_databases(self, reload=False, sensitivty=False):
         # Check if Ecoinvent databases are already present
         if self.matching_database not in bd.databases:
             # Import Ecoinvent database
-            ei = bi.SingleOutputEcospold2Importer(dirpath=self.ecoinevnt_paths[self.matching_database], db_name=self.matching_database)
+            ei = bi.SingleOutputEcospold2Importer(dirpath=self.import_ecoinvent_database(), db_name=self.matching_database)
             ei.apply_strategies()
             ei.statistics()
             ei.write_database()
@@ -394,7 +321,7 @@ class main():
                     self.extract_database(df, reload, sheet)
             else:
                 print("Wrong data format")
-
+        
     def remove_bio_co2_recipe(self):
         all_methods = [m for m in bw.methods if 'ReCiPe 2016 v1.03, midpoint (H)' in str(m) and 'no LT' not in str(m)] # Midpoint
 
@@ -442,20 +369,22 @@ class main():
                     new_method.register()
                     new_method.write(recipe_no_bio_CO2)
 
-                    # Step 6: Store the new method
+                    # Storing the new method
                     new_methods[metod] = new_method_key
                     print(f"New method created: {new_method_key} with {len(recipe_no_bio_CO2)} CFs")
 
     def create_new_bs3_activities(self, df):
+
         biosphere3 = bw.Database('biosphere3')
+
         # Get the list of columns from the dataframe
-        new_flow = {}
-        codes = {}
+        new_biosphere3_flow = {}
+        biosphere3_codes = {}
         
         # Iterate over each column in the dataframe
         for col in df.columns:
             # Define the new emission flow
-            new_flow[col] = {
+            new_biosphere3_flow[col] = {
                 'name': col,
                 'categories': ('water',),
                 'unit': 'kilogram',
@@ -463,17 +392,17 @@ class main():
                 'location': ""
             }
             # Create a unique code for the new flow
-            codes[col] = f"self-made-{col}-1"
+            biosphere3_codes[col] = f"self-made-{col}-1"
             # Check if the code already exists in biosphere3
-            if codes[col] not in [act['code'] for act in biosphere3]:
+            if biosphere3_codes[col] not in [act['code'] for act in biosphere3]:
                 # Create and save the new activity in biosphere3
-                new_flow_entry = biosphere3.new_activity(code=codes[col], **new_flow[col])
+                new_flow_entry = biosphere3.new_activity(code=biosphere3_codes[col], **new_biosphere3_flow[col])
                 new_flow_entry.save()
                 print(f"{col} is added to biosphere3")
             # else:
             #     print(f"{col} is present in biosphere3")
         
-        return codes
+        return biosphere3_codes
 
     def ecotoxicity_impact_category(self):
         # Get all methods related to ReCiPe 2016 midpoint/endpoint (H) without biogenic
@@ -551,7 +480,7 @@ class main():
         # Add the new activities to the biosphere3 database
         self.add_activity_to_biosphere3(df, act_dct)
 
-    def database_setup(self, reload, sensitivty):
+    def database_setup(self, reload, sensitivty=False):
         self.import_excel_database_to_brightway_has_been_called = False
 
         # Set the current Brightway project
@@ -559,10 +488,7 @@ class main():
         
 
         # Check if biosphere database is already present
-        if any("biosphere" in db for db in bd.databases):
-            pass
-            # print('Biosphere is already present in the project.')
-        else:
+        if "biosphere3" not in bd.databases:
             bi.bw2setup()
 
         if isinstance(self.matching_database, str):
@@ -586,67 +512,108 @@ class main():
         return df
 
     def create_LCI_tables(self):
-        lci_table_template_folder = self.results_folder(self.path, r"\RA\penicillin results")
-        lci_table_template_path = self.join_path(lci_table_template_folder, r"LCI_tables.xlsx")
+        # Path to the LCI table template Excel file
+        lci_table_template_path = self.join_path(self.results_path, r"LCI_tables.xlsx")
 
+        # Read the template into a DataFrame
         lci_table_template_df = pd.read_excel(lci_table_template_path)
 
         dct = {}
+        # Iterate over each activity in the database
         for act in self.db:
-            # print(act)
+            # Reload the template for each activity to avoid overwriting
             lci_table_template_df = pd.read_excel(lci_table_template_path)
-            new_idx = range(0, len(act.exchanges())+1)  # or any desired length greater than current
+
+            # Create a new index to fit all exchanges plus one for the production exchange
+            new_idx = range(0, len(act.exchanges()) + 1)
             lci_table_template_df = lci_table_template_df.reindex(new_idx)
             bio_idx_start = 0
-            for i, exc in enumerate(act.exchanges()):      
-                i += 1
-                
+
+            # Fill in the template with technosphere exchanges
+            for i, exc in enumerate(act.exchanges()):
+                i += 1  # Offset for production exchange at index 0
                 for col in lci_table_template_df.columns:
                     lci_table_template_df[col] = lci_table_template_df[col].astype('object')
-
                     search_term = col.lower()
                     if "Provider" in col:
                         search_term = "name"
                     if "Reference Flow" in col:
                         search_term = "reference product"
+                    # Fill in the production exchange at the top
                     if i == 1 and "production" in exc["type"]:
                         lci_table_template_df.loc[0, col] = exc[search_term]
+                    # Fill in technosphere exchanges
                     if "techno" in exc["type"]:
-                        
                         lci_table_template_df.loc[i, col] = exc[search_term]
-                        if "Provider" in col: 
+                        if "Provider" in col:
                             location = exc["location"]
                             lci_table_template_df.loc[i, col] = fr"{exc[search_term]} | {location}"
                         bio_idx_start = i
             try:
-                bio_idx_start +=1
-                
-                lci_table_template_df.at[bio_idx_start,"Amount"]
-                    
+                # Start filling biosphere flows after technosphere exchanges
+                bio_idx_start += 1
+                lci_table_template_df.at[bio_idx_start, "Amount"]
                 for col in lci_table_template_df.columns:
                     lci_table_template_df[col] = lci_table_template_df[col].astype('object')
-                    for i, exc in enumerate(act.exchanges()):      
-                        idx = i +bio_idx_start
+                    for i, exc in enumerate(act.exchanges()):
+                        idx = i + bio_idx_start
                         search_term = col.lower()
                         if "Provider" in col:
                             continue
                         if "Reference Flow" in col:
                             search_term = "name"
+                        # Add a label for biosphere flows
                         if idx == bio_idx_start and col == lci_table_template_df.columns[0]:
                             lci_table_template_df.loc[idx, col] = "Biosphere flow"
+                        # Fill in biosphere exchanges
                         elif "bio" in exc["type"] and i > 0:
                             lci_table_template_df.loc[idx, col] = exc[search_term]
-                
+                # Remove empty rows from the DataFrame
                 lci_table_template_df = self.remove_empty_rows(lci_table_template_df)
             except KeyError:
                 pass
+            # Store the filled DataFrame for this activity
             dct[act["name"]] = lci_table_template_df
+
+        # Create the results folder if it doesn't exist
         lci_table_folder = self.results_folder(self.path_github, r"data")
+        # Path to save the LCI tables Excel file
         lci_table_path = self.join_path(lci_table_folder, r"LCI_tables.xlsx")
 
+        # Write each activity's LCI table to a separate sheet in the Excel file
         with pd.ExcelWriter(lci_table_path, engine='xlsxwriter') as writer:
             for act, df in dct.items():
                 sheet_name = act
+                # Excel sheet names have a 31 character limit
                 if len(act) > 30:
                     sheet_name = act[:29] + " " + act[-1]
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+# Function to calculate treatment quantities based on scaling factors from an Excel file
+def treatment_quantity(self):
+    # Use a context manager to open the Excel file
+    with pd.ExcelFile(self.system_path) as excel_file:
+        # Get the sheet names
+        sheet_names = excel_file.sheet_names
+    
+    scaling_sheet = ""
+    for sheet in sheet_names:
+        if "scaling" in sheet:
+            scaling_sheet = sheet
+
+    # Read the treatment quantity data from the second sheet
+    df_treatment_quantity = pd.read_excel(io=self.system_path, sheet_name=scaling_sheet)
+    scaling_dct = {}
+    for act in self.db:
+        # Filter activities related to penicillin
+        if "filling of glass vial" in act['name'] or "tablet" in act['name']:
+            for exc in act.exchanges():
+                # Match exchanges with penicillin types
+                if "penicillium " in exc.input["name"]:
+                    for pen_type in df_treatment_quantity.columns:
+                        for _, row in df_treatment_quantity.iterrows():
+                            if pen_type in exc["name"]:
+                                # Calculate scaling factors
+                                scaling_dct[exc["name"]] = exc["amount"] * row[pen_type]
+
+    return scaling_dct

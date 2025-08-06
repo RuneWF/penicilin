@@ -1,23 +1,13 @@
-import reload_lib as rl
-# import lca
-import standards as s
-import sensitivity as st
-import brightway2 as bw 
-
 import bw2data as bd
 import bw2calc as bc
 import pandas as pd
 import numpy as np
-
+import os
 import matplotlib.pyplot as plt
-
 
 import main as m
 
-path = r'C:/Users/ruw/Desktop'
-matching_database = "ev391cutoff"
-
-init = m.main(path=path,matching_database=matching_database)
+init = m.main()
 
 pen_type =  ["G", "V"]
 
@@ -126,32 +116,29 @@ def create_func_unit(sensitivty=False):
                 
     return func_unit, elec_val_G, elec_val_V
 
-def perform_LCIA_countries_sens(func_unit, calc=False):
+def perform_LCIA_countries_sens(func_unit):
     # Initialize DataFrame to store results
-    if calc:
-        df_dct = {}
-        for pen, fu_dct in func_unit.items():
-            # print(pen)
-            pen_arr = []
-            for country, fu in fu_dct.items():
-                print(f"Performing LCIA for {pen} - {country}")
-                idx_lst = []
-                for dct in fu:
-                    idx_lst.append(list(dct.keys())[0])
-                idx_lst.sort
-                ics = init.lcia_impact_method()                
-                # Set up and perform the LCA calculation
-                bd.calculation_setups[str(country)] = {'inv': fu, 'ia': [ics[1]]}
-                    
-                mylca = bc.MultiLCA(str(country))
-                res = mylca.results
-                pen_arr.append(res)
+    df_dct = {}
+    for pen, fu_dct in func_unit.items():
+        pen_arr = []
+        for country, fu in fu_dct.items():
+            print(f"Performing LCIA for {pen} - {country}")
+            idx_lst = []
+            for dct in fu:
+                idx_lst.append(list(dct.keys())[0])
+            idx_lst.sort
+            ics = init.lcia_impact_method()                
+            # Set up and perform the LCA calculation
+            bd.calculation_setups[str(country)] = {'inv': fu, 'ia': [ics[1]]}
+                
+            mylca = bc.MultiLCA(str(country))
+            res = mylca.results
+            pen_arr.append(res)
 
 
-            df_dct[pen] = pen_arr
-        return df_dct
-    else:
-        return None
+        df_dct[pen] = pen_arr
+    return df_dct
+
 
 def calc_penicillin_impact(elec_val_V, elec_val_G):
 
@@ -224,36 +211,43 @@ def category_sorting():
 
     return pen_contries_cat_dct
 
-def results_sorting(func_unit, elec_val_V, elec_val_G, calc):
-    save_dir = s.results_folder(init.results_path, "sensitivity")
-    df_res_dct = {}
-    if calc:
-        df_dct = perform_LCIA_countries_sens(func_unit, calc)
-        impact_dct = results_correction(func_unit, df_dct, elec_val_V, elec_val_G)
-        pen_contries_cat_dct = category_sorting()
-        for p, (pen, res_dct) in enumerate(impact_dct.items()):
-            col = list(res_dct.keys())
-            idx = list(pen_contries_cat_dct.keys())
-            df = pd.DataFrame(0, index=idx, columns=col, dtype=object)
+def LCIA_countries(func_unit, elec_val_V, elec_val_G, save_dir, df_res_dct):
+    df_dct = perform_LCIA_countries_sens(func_unit)
+    impact_dct = results_correction(func_unit, df_dct, elec_val_V, elec_val_G)
+    pen_contries_cat_dct = category_sorting()
+    for p, (pen, res_dct) in enumerate(impact_dct.items()):
+        col = list(res_dct.keys())
+        idx = list(pen_contries_cat_dct.keys())
+        df = pd.DataFrame(0, index=idx, columns=col, dtype=object)
 
-            
-            for country, dct_ in res_dct.items():
-                for act, val in dct_.items():
-                    
-                    for cat, keywords in pen_contries_cat_dct.items():
-                        # Check each keyword in the category
-                        for keyword in keywords:
-                            if keyword in str(act):
-                                df.loc[cat, country] += val
-            
-            excel_file = s.join_path(save_dir, f"countries_pen_{pen_type[p]}.xlsx")
-            
-            s.save_LCIA_results(df, excel_file, f"pen_{pen_type[p]}")
-            df_res_dct[pen] = df
-    else:
+        
+        for country, dct_ in res_dct.items():
+            for act, val in dct_.items():
+                
+                for cat, keywords in pen_contries_cat_dct.items():
+                    # Check each keyword in the category
+                    for keyword in keywords:
+                        if keyword in str(act):
+                            df.loc[cat, country] += val
+        
+        excel_file = init.join_path(save_dir, f"countries_pen_{pen_type[p]}.xlsx")
+        
+        init.save_LCIA_results(df, excel_file)
+        df_res_dct[pen] = df
+
+def results_sorting(func_unit, elec_val_V, elec_val_G, calc):
+    save_dir = init.results_folder(init.results_path, "sensitivity")
+    df_res_dct = {}
+    if os.path.exists(save_dir) and calc is False:
         for p, (pen, country_dct) in enumerate(func_unit.items()):
-            excel_file = s.join_path(save_dir, f"countries_pen_{pen_type[p]}.xlsx")
-            df_res_dct[pen] = s.import_LCIA_results(excel_file, list(country_dct.keys()))
+                excel_file = init.join_path(save_dir, f"countries_pen_{pen_type[p]}.xlsx")
+                df_res_dct[pen] = init.import_LCIA_results(excel_file, list(country_dct.keys()))
+
+    elif os.path.exists(save_dir) is False or calc:
+        LCIA_countries(func_unit, elec_val_V, elec_val_G, save_dir, df_res_dct)
+
+    else:
+        print("Error")
     
     return df_res_dct
 
@@ -269,7 +263,6 @@ def set_y_ticks(p, ax):
 
 def penicillin_G_V_to_IV_oral(pen_type):
     if "G" in pen_type:
-        # txt = idx.replace(f", defined system", "")
         return "IV"
     else:
         return "Oral"
@@ -282,13 +275,13 @@ def countries_sens_plot(calc=False, sensitivity=False):
     df_res_dct = results_sorting(func_unit, elec_val_V, elec_val_G, calc)
     title_identifier = [r"$\bf{Fig\ A:}$ ", r"$\bf{Fig\ B:}$ "]
     
-    plot_save_path = s.join_path(init.path_github, r"figures")
+    plot_save_path = init.join_path(init.path_github, r"figures")
     
-    width_in, height_in, dpi = s.plot_dimensions(subfigure=True)
+    width_in, height_in, dpi = init.plot_dimensions(subfigure=True)
     fig, axes = plt.subplots(1, len(df_res_dct.keys()), figsize=(width_in*1.9, height_in), dpi=dpi)
 
     for p, df in enumerate(df_res_dct.values()):
-        colors = s.color_range(colorname="coolwarm", color_quantity=len(df.index))
+        colors = init.color_range(colorname="coolwarm", color_quantity=len(df.index))
         df.T.plot(
             kind='bar',
             stacked=True,
@@ -330,6 +323,6 @@ def countries_sens_plot(calc=False, sensitivity=False):
             axes[p].get_legend().remove()
     
     plt.tight_layout()
-    output_file = s.join_path(plot_save_path, f"pen{pen_type[p]}_countries_sens.png")
+    output_file = init.join_path(plot_save_path, f"pen{pen_type[p]}_countries_sens.png")
     plt.savefig(output_file, dpi=dpi, format='png', bbox_inches='tight')
     plt.show()

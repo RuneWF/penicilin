@@ -16,6 +16,6 @@ def reload_lib(lib):
     elif isinstance(lib, type(importlib)):
         importlib.reload(lib)
     else:
-        print(f"Warning: {lib} is not a module or a list of modules and cannot be reloaded.\n")
+        print(f"Warning: {lib} is not a module or a list of modules and cannot be reloaded.")
 
     
