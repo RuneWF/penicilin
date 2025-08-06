@@ -1,12 +1,14 @@
 \begin{table}
-\caption{Life cycle Inveotry : production of glass vial}
+\caption{Life Cycle Inveotry : production of glass vial}
 \label{tab:lci:glass vial}
 \begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
 \toprule
-Reference Flow & Amount & Unit & Provider \\
+\textbf{Reference Flow} & \textbf{Amount} & \textbf{Unit} & \textbf{Provider \\} \\
 \midrule
 glass vial & 1.000000 & unit & production of glass vial \\
+\midrule
 Input &  &  &  \\
+\midrule
 packaging glass, white & 0.009333 & kilogram & market for packaging glass, white | GLO \\
 oxygen, liquid & 0.002646 & kilogram & market for oxygen, liquid | RoW \\
 heat, district or industrial, natural gas & 0.108333 & megajoule & market for heat, district or industrial, natural gas | RoW \\
@@ -19,3 +21,4 @@ sheet rolling, aluminium & 0.000458 & kilogram & sheet rolling, aluminium | RoW 
 \bottomrule
 \end{tabular}
 \end{table}
+

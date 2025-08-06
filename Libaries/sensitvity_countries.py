@@ -241,7 +241,7 @@ def results_sorting(func_unit, elec_val_V, elec_val_G, calc):
     if os.path.exists(save_dir) and calc is False:
         for p, (pen, country_dct) in enumerate(func_unit.items()):
                 excel_file = init.join_path(save_dir, f"countries_pen_{pen_type[p]}.xlsx")
-                df_res_dct[pen] = init.import_LCIA_results(excel_file, list(country_dct.keys()))
+                df_res_dct[pen] = init.import_LCIA_results(excel_file)
 
     elif os.path.exists(save_dir) is False or calc:
         LCIA_countries(func_unit, elec_val_V, elec_val_G, save_dir, df_res_dct)

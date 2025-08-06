@@ -1,7 +1,6 @@
 # Importing libaries to perform the code
 import pandas as pd
 from copy import deepcopy as dc
-import re
 import os
 import ast
 import numpy as np
@@ -50,9 +49,6 @@ class main():
         self.impact_categories_mid = []
         self.impact_categories_end = []
 
-        # initialization of the functional unit parameter
-        self.func_unit = {}
-
         # initialization of the dataframes for the LCIA parameter
         self.df_midpoint = pd.DataFrame()
         self.df_endpoint = pd.DataFrame()
@@ -60,8 +56,6 @@ class main():
         self.df_rearranged = pd.DataFrame()
 
         self.reload_database_has_been_called = False
-        self.import_excel_database_to_brightway_has_been_called = False
-
 
     # Function to obtain the LCIA category to calculate the LCIA results
     def lcia_impact_method(self):
@@ -100,9 +94,7 @@ class main():
 
         try:
             # Check if the directory already exists
-            if os.path.exists(save_dir):
-                pass
-            else:
+            if os.path.exists(save_dir) is False:
                 # Create the directory if it doesn't exist
                 os.makedirs(save_dir, exist_ok=True)
                 print(f'The folder {save_dir} is created')
@@ -145,10 +137,7 @@ class main():
             df.to_excel(writer, index=True, header=True)
 
     # Function to import the LCIA results from excel
-    def import_LCIA_results(self, file_name, columns):
-        if type(columns) == tuple:
-            columns = [columns]
-        
+    def import_LCIA_results(self, file_name):
         # Reading from Excel
         df = pd.read_excel(io=file_name, index_col=0)
 
@@ -162,7 +151,7 @@ class main():
                     row[col] = float(cell_value)
         try:
             # Updating column names
-            df.columns = columns
+            df.columns = self.lcia_impact_method()
         except ValueError:
             pass
 
@@ -222,7 +211,6 @@ class main():
             if unlinked_items:
                 print(unlinked_items)
             print("database name = ",data.columns[1])
-            self.import_excel_database_to_brightway_has_been_called = True
             
         except ValueError:
             print(data.columns[1])
@@ -244,34 +232,50 @@ class main():
         with pd.ExcelFile(self.system_path) as excel_file:
             # Get the sheet names
             sheet_names = excel_file.sheet_names
-        
-        sheets_to_import = []
+
         for sheet in sheet_names:
-            if self.matching_database in sheet:
-                sheets_to_import.append(sheet)
-        return sheets_to_import
+            if self.matching_database not in sheet:
+                sheet_names.remove(sheet)
+
+        return sheet_names
+
+    def extract_database_from_excel(self, data):
+        dcols = data.columns
+        database = None
+
+        # Improved logic: avoid nested loops, use vectorized search for columns first, then rows if needed
+        if database is None:
+            # Search for column names containing both keywords
+            for icol, col in enumerate(dcols):
+                if "database" in str(col).lower():
+                    # Check if next column exists and matches
+                    if icol + 1 < len(dcols) and "penicillin_cut_off" in str(dcols[icol + 1]).lower():
+                        database = dcols[icol + 1]
+                        break
+            # If not found in columns, search in rows
+            if database is None:
+                for _, row in data.iterrows():
+                    for icol, col in enumerate(dcols):
+                        cell_val = str(row[col]).lower() if pd.notnull(row[col]) else ""
+                        if "database" in cell_val:
+                            # Check if next column exists and matches
+                            if icol + 1 < len(dcols):
+                                next_cell_val = str(row[dcols[icol + 1]]).lower() if pd.notnull(row[dcols[icol + 1]]) else ""
+                                if "penicillin_cut_off" in next_cell_val:
+                                    database = dcols[icol + 1]
+                                    break
+                    if database is not None:
+                        break
+            
+        return database  
 
     def extract_database(self, data, reload, sheet):
-        proj_database_str = data.columns[1]
+        proj_database_str = self.extract_database_from_excel(data)
         if proj_database_str not in bd.databases:
             self.import_excel_database_to_brightway(data)
+
         # Reload databases if needed
         self.reload_database(proj_database_str, reload, sheet)
-
-    def is_db_in_project(self, sheets_to_import):
-        import_db = False
-
-        if isinstance(sheets_to_import,str):
-            sheets_to_import = [sheets_to_import]
-
-        for sheet in sheets_to_import:
-            data = pd.read_excel(self.system_path, sheet_name=sheet)
-            if data.columns[1] not in bd.databases:
-                print(f"{data.columns[1]} not in {bd.projects.current}")
-                import_db = True
-                break
-
-        return import_db
 
     def import_ecoinvent_database(self):
         ecoinevnt_term = {
@@ -279,7 +283,6 @@ class main():
             'ev391consq' :  r"ecoinvent 3.9.1_consequential_ecoSpold02\datasets",
             'ev391cutoff' :  r"ecoinvent 3.9.1_cutoff_ecoSpold02\datasets"
             }
-        
         
         base_path = Path.home()
 
@@ -297,7 +300,7 @@ class main():
         sheets_to_import = self.extract_excel_sheets()
 
         if sensitivty is False:
-            # Extracting the first sheet only
+            # Extracting the base case sheet only
             sheets_to_import = sheets_to_import[0]
 
         data = pd.read_excel(self.system_path, sheet_name=sheets_to_import)
@@ -307,8 +310,6 @@ class main():
                 self.extract_database(data, reload, sheets_to_import)
             elif isinstance(data, dict):
                 for sheet, df in data.items():
-                    # print(df.columns[1])
-                    self.import_excel_database_to_brightway_has_been_called = False
                     self.extract_database(df, reload, sheet)
             else:
                 print("Wrong data format")
@@ -390,8 +391,7 @@ class main():
                 new_flow_entry = biosphere3.new_activity(code=biosphere3_codes[col], **new_biosphere3_flow[col])
                 new_flow_entry.save()
                 print(f"{col} is added to biosphere3")
-            # else:
-            #     print(f"{col} is present in biosphere3")
+
         
         return biosphere3_codes
 
@@ -445,14 +445,12 @@ class main():
             except Exception as e:
                 print(f"An error occurred while processing {method[1]}: {e}")
 
-    def add_new_biosphere_activities(self, bw_project):
-        path_github = self.path_github
-
+    def add_new_biosphere_activities(self):
         # Set the current Brightway2 project
-        bd.projects.set_current(bw_project)
+        bd.projects.set_current(self.bw_project)
         
         # Load the new impacts data from the specified path
-        data_path = self.join_path(path_github, r"data\new_impacts.xlsx")
+        data_path = self.join_path(self.path_github, r"data\new_impacts.xlsx")
         df = pd.read_excel(data_path, index_col=0)
         
         # Create new biosphere activities and get their codes
@@ -472,12 +470,10 @@ class main():
         self.add_activity_to_biosphere3(df, act_dct)
 
     def database_setup(self, reload, sensitivty=False):
-        self.import_excel_database_to_brightway_has_been_called = False
 
         # Set the current Brightway project
         bd.projects.set_current(self.bw_project)
         
-
         # Check if biosphere database is already present
         if "biosphere3" not in bd.databases:
             bi.bw2setup()
@@ -489,7 +485,7 @@ class main():
                 self.import_databases(reload, sensitivty)
 
         if self.reload_database_has_been_called is False:
-            self.add_new_biosphere_activities(self.bw_project)
+            self.add_new_biosphere_activities()
 
     def remove_empty_rows(self, df):
         temp = df.isna()
@@ -565,8 +561,6 @@ class main():
             # Store the filled DataFrame for this activity
             dct[act["name"]] = lci_table_template_df
 
-        
-
         # Write each activity's LCI table to a separate sheet in the Excel file
         with pd.ExcelWriter(self.lci_table_path, engine='xlsxwriter') as writer:
             for act, df in dct.items():
@@ -576,31 +570,31 @@ class main():
                     sheet_name = act[:29] + " " + act[-1]
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
 
-# Function to calculate treatment quantities based on scaling factors from an Excel file
-def treatment_quantity(self):
-    # Use a context manager to open the Excel file
-    with pd.ExcelFile(self.system_path) as excel_file:
-        # Get the sheet names
-        sheet_names = excel_file.sheet_names
-    
-    scaling_sheet = ""
-    for sheet in sheet_names:
-        if "scaling" in sheet:
-            scaling_sheet = sheet
+    # Function to calculate treatment quantities based on scaling factors from an Excel file
+    def treatment_quantity(self):
+        # Use a context manager to open the Excel file
+        with pd.ExcelFile(self.system_path) as excel_file:
+            # Get the sheet names
+            sheet_names = excel_file.sheet_names
+        
+        scaling_sheet = ""
+        for sheet in sheet_names:
+            if "scaling" in sheet:
+                scaling_sheet = sheet
 
-    # Read the treatment quantity data from the second sheet
-    df_treatment_quantity = pd.read_excel(io=self.system_path, sheet_name=scaling_sheet)
-    scaling_dct = {}
-    for act in self.db:
-        # Filter activities related to penicillin
-        if "filling of glass vial" in act['name'] or "tablet" in act['name']:
-            for exc in act.exchanges():
-                # Match exchanges with penicillin types
-                if "penicillium " in exc.input["name"]:
-                    for pen_type in df_treatment_quantity.columns:
-                        for _, row in df_treatment_quantity.iterrows():
-                            if pen_type in exc["name"]:
-                                # Calculate scaling factors
-                                scaling_dct[exc["name"]] = exc["amount"] * row[pen_type]
+        # Read the treatment quantity data from the second sheet
+        df_treatment_quantity = pd.read_excel(io=self.system_path, sheet_name=scaling_sheet)
+        scaling_dct = {}
+        for act in self.db:
+            # Filter activities related to penicillin
+            if "filling of glass vial" in act['name'] or "tablet" in act['name']:
+                for exc in act.exchanges():
+                    # Match exchanges with penicillin types
+                    if "penicillium " in exc.input["name"]:
+                        for pen_type in df_treatment_quantity.columns:
+                            for _, row in df_treatment_quantity.iterrows():
+                                if pen_type in exc["name"]:
+                                    # Calculate scaling factors
+                                    scaling_dct[exc["name"]] = exc["amount"] * row[pen_type]
 
-    return scaling_dct
+        return scaling_dct

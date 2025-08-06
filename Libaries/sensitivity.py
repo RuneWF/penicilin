@@ -88,7 +88,7 @@ def calculate_sensitivity_results(pencillium_fu, proc_check, calc=False):
     for pen_type, pen_fu in pencillium_fu.items():
         if os.path.isfile(file_path[pen_type]) and calc is False:
             for pen_type, excel_path in file_path.items():
-                temp = init.import_LCIA_results(excel_path, method_GWP)
+                temp = init.import_LCIA_results(excel_path)
                 temp.columns = [method_GWP[1]]  # Rename columns for consistency
                 pen_df[pen_type] = temp
         elif calc:
@@ -445,7 +445,7 @@ def obtain_results(calc):
         if calc:
             df = LCIA_eol(excel_path) 
         else:
-            df = init.import_LCIA_results(excel_path, list(func_unit.keys()))
+            df = init.import_LCIA_results(excel_path)
             df.index = [
                 "Cradle to Hospital",
                 "Incineration",
@@ -548,7 +548,7 @@ def sens_EoL_plot(calc=False):
     plt.show()
 
 def clinical_treatment_initialization():
-    df = init.import_LCIA_results(init.LCIA_results, init.lcia_impact_method())
+    df = init.import_LCIA_results(init.LCIA_results)
     ic_gwp = init.lcia_impact_method()[1]
     df_gwp = df[ic_gwp]
     idx_gwp = list(df_gwp.index)

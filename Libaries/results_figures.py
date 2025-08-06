@@ -85,7 +85,7 @@ def obtain_LCIA_results(calc):
 
     # Check if the file exists
     if os.path.isfile(LCIA_results) or calc is False:
-        df = init.import_LCIA_results(LCIA_results, init.lcia_impact_method())
+        df = init.import_LCIA_results(LCIA_results)
 
     elif os.path.isfile(LCIA_results) is False or calc:
         # Perform LCIA if file does not exist
@@ -349,7 +349,7 @@ def pen_G_contribution(contr_excel_path):
 def contribution_LCIA_calc(calc):
     contr_excel_path = init.join_path(init.results_path, r"LCIA\penG_contribution.xlsx")
     if os.path.isfile(contr_excel_path) or calc is False:
-        df_contr_share = init.import_LCIA_results(contr_excel_path, init.lcia_impact_method())
+        df_contr_share = init.import_LCIA_results(contr_excel_path)
  
     elif os.path.isfile(contr_excel_path) is False or calc:
         df_contr_share = pen_G_contribution(contr_excel_path)
