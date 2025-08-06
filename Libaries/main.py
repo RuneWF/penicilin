@@ -37,6 +37,14 @@ class main():
         self.LCIA_results = self.join_path(self.LCIA_folder, "LCIA_results.xlsx")
         self.LCIA_results_unique_process = self.join_path(self.LCIA_folder, "LCIA_results_unique.xlsx")
 
+        # Path to the LCI table template Excel file
+        self.lci_table_template_path = self.join_path(self.results_path, r"LCI_tables.xlsx")
+        # Create the results folder if it doesn't exist
+        self.lci_table_folder = self.results_folder(self.path_github, r"data")
+        # Path to save the LCI tables Excel file
+        self.lci_table_path = self.join_path(self.lci_table_folder, r"LCI_tables.xlsx")
+
+
         # LCIA method variable
         self.all_methods = []
         self.impact_categories_mid = []
@@ -82,33 +90,6 @@ class main():
         
         return self.df_midpoint, self.df_endpoint
 
-    # Function to create two dataframes, one where each subprocess' in the process are summed 
-    # and the second is scaling the totals in each column to the max value
-    # def dataframe_cell_scaling(self, df):
-
-    #     df_cols = df.columns
-    #     df_cols = df_cols.to_list()
-
-    #     df_scaled = dc(df)
-
-    #     # Obtaing the scaled value of each LCIA results in each column to the max
-    #     for i in df_cols:
-    #         scaling_factor = max(abs(df_scaled[i]))
-    #         for _, row in df_scaled.iterrows():
-    #             row[i] /= scaling_factor
-
-    #     return df_scaled
-
-    # def dataframe_results_handling(self, df):
-    #     # Rearrange the dataframe index based on the database name
-
-    #     # Split the dataframe into midpoint and endpoint results
-    #     self.df_midpoint, self.df_endpoint = self.recipe_dataframe_split(df)
-
-    #     # Return the processed dataframes and plot x-axis labels
-    #     return [self.df_midpoint, self.df_endpoint]
-
-
     # Function to create a results folder with a specified path and name
     def results_folder(self, path, name, database_name=None):
         # Determine the save directory and folder name based on the presence of a database name
@@ -132,6 +113,16 @@ class main():
         return save_dir
 
     def join_path(self, path1, *argv):
+        """
+        Joins multiple path components into a single Path object.
+
+        Args:
+            path1 (str or Path): The first path component.
+            *argv (str or Path): Additional path components to join.
+
+        Returns:
+            Path: The combined path as a Path object.
+        """
         path = Path(path1)
         for arg in argv:
             path = path / arg
@@ -512,17 +503,16 @@ class main():
         return df
 
     def create_LCI_tables(self):
-        # Path to the LCI table template Excel file
-        lci_table_template_path = self.join_path(self.results_path, r"LCI_tables.xlsx")
+        
 
         # Read the template into a DataFrame
-        lci_table_template_df = pd.read_excel(lci_table_template_path)
+        lci_table_template_df = pd.read_excel(self.lci_table_template_path)
 
         dct = {}
         # Iterate over each activity in the database
         for act in self.db:
             # Reload the template for each activity to avoid overwriting
-            lci_table_template_df = pd.read_excel(lci_table_template_path)
+            lci_table_template_df = pd.read_excel(self.lci_table_template_path)
 
             # Create a new index to fit all exchanges plus one for the production exchange
             new_idx = range(0, len(act.exchanges()) + 1)
@@ -575,13 +565,10 @@ class main():
             # Store the filled DataFrame for this activity
             dct[act["name"]] = lci_table_template_df
 
-        # Create the results folder if it doesn't exist
-        lci_table_folder = self.results_folder(self.path_github, r"data")
-        # Path to save the LCI tables Excel file
-        lci_table_path = self.join_path(lci_table_folder, r"LCI_tables.xlsx")
+        
 
         # Write each activity's LCI table to a separate sheet in the Excel file
-        with pd.ExcelWriter(lci_table_path, engine='xlsxwriter') as writer:
+        with pd.ExcelWriter(self.lci_table_path, engine='xlsxwriter') as writer:
             for act, df in dct.items():
                 sheet_name = act
                 # Excel sheet names have a 31 character limit

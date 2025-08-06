@@ -1,0 +1,21 @@
+\begin{table}
+\caption{Life cycle Inveotry : production of glass vial}
+\label{tab:lci:glass vial}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+Reference Flow & Amount & Unit & Provider \\
+\midrule
+glass vial & 1.000000 & unit & production of glass vial \\
+Input &  &  &  \\
+packaging glass, white & 0.009333 & kilogram & market for packaging glass, white | GLO \\
+oxygen, liquid & 0.002646 & kilogram & market for oxygen, liquid | RoW \\
+heat, district or industrial, natural gas & 0.108333 & megajoule & market for heat, district or industrial, natural gas | RoW \\
+polyethylene, high density, granulate & 0.000503 & kilogram & market for polyethylene, high density, granulate | GLO \\
+aluminium, cast alloy & 0.000458 & kilogram & market for aluminium, cast alloy | GLO \\
+synthetic rubber & 0.001048 & kilogram & market for synthetic rubber | GLO \\
+polyethylene, low density, granulate & 0.000272 & kilogram & market for polyethylene, low density, granulate | GLO \\
+injection moulding & 0.001813 & kilogram & injection moulding | RoW \\
+sheet rolling, aluminium & 0.000458 & kilogram & sheet rolling, aluminium | RoW \\
+\bottomrule
+\end{tabular}
+\end{table}
