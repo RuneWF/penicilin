@@ -1,0 +1,667 @@
+\begin{table}
+\caption{Life Cycle Inveotry : production of IV bag}
+\label{tab:lci:IV bag}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+IV bag & 1 & unit & production of IV bag \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+acrylonitrile-butadiene-styrene copolymer & 1.96 & g & market for acrylonitrile-butadiene-styrene copolymer | GLO \\
+extrusion, plastic pipes & 15.34 & g & market for extrusion, plastic pipes | GLO \\
+injection moulding & 29.98 & g & market for injection moulding | GLO \\
+packaging film, low density polyethylene & 2.52 & g & market for packaging film, low density polyethylene | GLO \\
+paper, woodfree, uncoated & 1.12 & g & market for paper, woodfree, uncoated | RER \\
+polycarbonate & 7.36 & g & market for polycarbonate | GLO \\
+polypropylene, granulate & 15.63 & g & market for polypropylene, granulate | GLO \\
+polystyrene, general purpose & 3.97 & g & market for polystyrene, general purpose | GLO \\
+polyvinylchloride, bulk polymerised & 15.34 & g & market for polyvinylchloride, bulk polymerised | GLO \\
+textile, nonwoven polypropylene & 0.30 & g & market for textile, nonwoven polypropylene | GLO \\
+thermoforming of plastic sheets & 1.96 & g & market for thermoforming of plastic sheets | GLO \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : production of alchohol wipes}
+\label{tab:lci:alchohol wipes}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+alchohol wipes & 1 & unit & production of alchohol wipes \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+chemi-thermomechanical pulp & 0.41 & g & market for chemi-thermomechanical pulp | GLO \\
+ethanol, without water, in 99.7\% solution state, from ethylene & 0.36 & g & market for ethanol, without water, in 99.7\% solution state, from ethylene | RER \\
+paper, woodfree, uncoated & 0.41 & g & market for paper, woodfree, uncoated | RER \\
+textile, nonwoven polypropylene & 0.15 & g & market for textile, nonwoven polypropylene | GLO \\
+transport, freight, lorry 16-32 metric ton, EURO6 & 0.15 & kg\*km & market for transport, freight, lorry 16-32 metric ton, EURO6 | RER \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : recycling}
+\label{tab:lci:recycling}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+recycling & 1 & unit & recycling \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+polyethylene, high density, granulate, recycled & 37.30 & g & market for polyethylene, high density, granulate, recycled | Europe without Switzerland \\
+polyethylene terephthalate, granulate, amorphous, recycled & 19.18 & g & market for polyethylene terephthalate, granulate, amorphous, recycled | Europe without Switzerland \\
+polystyrene foam slab & 5.01 & g & polystyrene foam slab production, 100\% recycled | CH \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : recycling IV}
+\label{tab:lci:recycling IV}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+recycling IV & 1 & unit & recycling IV \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+polyethylene, high density, granulate, recycled & 15.33 & g & market for polyethylene, high density, granulate, recycled | Europe without Switzerland \\
+polyethylene terephthalate, granulate, amorphous, recycled & 19.18 & g & market for polyethylene terephthalate, granulate, amorphous, recycled | Europe without Switzerland \\
+polystyrene foam slab & 5.01 & g & polystyrene foam slab production, 100\% recycled | CH \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : magnesium stearate}
+\label{tab:lci:magnesium stearate}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+magnesium stearate & 1 & kg & magnesium stearate \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+magnesium oxide & 68.04 & g & market for magnesium oxide | GLO \\
+stearic acid & 0.96 & kg & market for stearic acid | GLO \\
+wastewater, average & -27.01 & m$^3$ & market for wastewater, average | RoW \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : filling of glass vial}
+\label{tab:lci:glass vial with penicillin}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+glass vial with penicillin & 1 & unit & filling of glass vial \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+glass vial & 1 & unit & production of glass vial | IN \\
+raw penicillium G & 0.60 & g & manufacturing of raw penicillium G | IN \\
+electricity, low voltage & 31.25 & Wh & market group for electricity, low voltage | IN \\
+heat, district or industrial, natural gas & 0.43 & MJ & market for heat, district or industrial, natural gas | RoW \\
+water, deionised & 0.20 & kg & market for water, deionised | RoW \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : Penicillin G, recycling gloves}
+\label{tab:lci:Penicillin G, recycling gloves}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+Penicillin G, recycling gloves & 1 & unit & Penicillin G, recycling gloves \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+alchohol wipes & 1 & unit & production of alchohol wipes | DK \\
+full box with glass vials & 0.10 & unit & packaging of glass vials with penicillin G | IN \\
+pair of gloves & 1 & unit & production of a pair of gloves | MY \\
+hazardous waste, for incineration & -60.83 & g & treatment of hazardous waste, hazardous waste incineration, with energy recovery | CH \\
+avoided plastics & -1 & unit & avoided -  gloves | DK \\
+recycling gloves & 1 & unit & recycling gloves | DK \\
+IV bag & 1 & unit & production of IV bag | RER \\
+medical connector & 1 & unit & medical connector | GLO \\
+sodium chlorate, powder & 0.90 & g & market for sodium chlorate, powder | RER \\
+stopcock & 1 & unit & stopcock | GLO \\
+water, ultrapure & 100.00 & g & market for water, ultrapure | RER \\
+waste packaging paper & 20.20 & g & waste packaging paper, Recycled Content cut-off | GLO \\
+\midrule
+\bf{Biosphere flow} &  &  &  \\
+\midrule
+Ethanol & 0.36 & g &  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : manufacturing of raw penicillium G}
+\label{tab:lci:raw penicillium G}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+raw penicillium G & 1 & kg & manufacturing of raw penicillium G \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+acetone, liquid & 0.22 & kg & market for acetone, liquid | RoW \\
+ammonium sulfate & 0.32 & kg & market for ammonium sulfate | RoW \\
+butyl acetate & 0.18 & kg & market for butyl acetate | RoW \\
+electricity, low voltage & 21.98 & kWh & market group for electricity, low voltage | IN \\
+glucose & 5.18 & kg & glucose production | RoW \\
+heat, from steam, in chemical industry & 6.72 & MJ & market for heat, from steam, in chemical industry | RoW \\
+oxygen, liquid & 4.02 & kg & market for oxygen, liquid | RoW \\
+pharmamedia & 1.30 & kg & production of pharmamedia | IN \\
+phenyl acetic acid & 17.86 & g & market for phenyl acetic acid | GLO \\
+sodium acetate & 0.26 & kg & sodium acetate | RoW \\
+sodium hydroxide, without water, in 50\% solution state & 0.11 & kg & market for sodium hydroxide, without water, in 50\% solution state | GLO \\
+sulfuric acid & 10.00 & g & market for sulfuric acid | RoW \\
+water, deionised & 19.10 & kg & market for water, deionised | RoW \\
+raw penicillium G & 39.50 & g & manufacturing of raw penicillium G | IN \\
+average incineration residue & -5.35 & g & treatment of average incineration residue, residual material landfill | RoW \\
+biowaste & -1.07 & kg & treatment of biowaste, municipal incineration | GLO \\
+sodium acetate & -30.00 & g & sodium acetate | RoW \\
+\midrule
+\bf{Biosphere flow} &  &  &  \\
+\midrule
+Acetic acid & 0.17 & kg &  \\
+Acetone & 0.22 & kg &  \\
+Butyl acetate & 0.18 & kg &  \\
+Carbon dioxide, fossil & 6.58 & kg &  \\
+Glucose & 60.00 & g &  \\
+Phenylacetic acid & 10.00 & g &  \\
+Sodium hydroxide & 0.11 & kg &  \\
+Sulfuric acid & 10.00 & g &  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : sodium acetate}
+\label{tab:lci:sodium acetate}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+sodium acetate & 1 & kg & sodium acetate \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+acetic acid, without water, in 98\% solution state & 0.73 & kg & market for acetic acid, without water, in 98\% solution state | GLO \\
+sodium hydroxide, without water, in 50\% solution state & 0.49 & kg & market for sodium hydroxide, without water, in 50\% solution state | GLO \\
+wastewater, average & -0.22 & m$^3$ & market for wastewater, average | RoW \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : avoided}
+\label{tab:lci:avoided plastics}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+avoided plastics & 1 & unit & avoided \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+acrylonitrile-butadiene-styrene copolymer & 1.66 & g & acrylonitrile-butadiene-styrene copolymer production | RER \\
+polyethylene, low density, granulate & 3.82 & g & polyethylene production, low density, granulate | RER \\
+polycarbonate & 6.22 & g & polycarbonate production | RER \\
+polypropylene, granulate & 13.21 & g & polypropylene production, granulate | RER \\
+polystyrene foam slab & 3.35 & g & polystyrene foam slab production | RER \\
+polyvinylidenchloride, granulate & 12.96 & g & polyvinylidenchloride production, granulate | RER \\
+synthetic rubber & 20.28 & g & synthetic rubber production | RER \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : production of glass vial}
+\label{tab:lci:glass vial}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+glass vial & 1 & unit & production of glass vial \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+packaging glass, white & 9.33 & g & market for packaging glass, white | GLO \\
+oxygen, liquid & 2.65 & g & market for oxygen, liquid | RoW \\
+heat, district or industrial, natural gas & 0.11 & MJ & market for heat, district or industrial, natural gas | RoW \\
+polyethylene, high density, granulate & 0.50 & g & market for polyethylene, high density, granulate | GLO \\
+aluminium, cast alloy & 0.46 & g & market for aluminium, cast alloy | GLO \\
+synthetic rubber & 1.05 & g & market for synthetic rubber | GLO \\
+polyethylene, low density, granulate & 0.27 & g & market for polyethylene, low density, granulate | GLO \\
+injection moulding & 1.81 & g & injection moulding | RoW \\
+sheet rolling, aluminium & 0.46 & g & sheet rolling, aluminium | RoW \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : production of pharmamedia}
+\label{tab:lci:pharmamedia}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+pharmamedia & 1 & kg & production of pharmamedia \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+calcium carbonate, precipitated & 10.00 & g & market for calcium carbonate, precipitated | RoW \\
+cottonseed meal & 30.00 & g & market for cottonseed meal | GLO \\
+soybean oil, refined & 2.93 & g & market for soybean oil, refined | GLO \\
+water, deionised & 0.93 & kg & market for water, deionised | RoW \\
+whey & 30.00 & g & market for whey | GLO \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : packaging of a medicine strip}
+\label{tab:lci:packaged medicine strip}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+packaged medicine strip & 1 & unit & packaging of a medicine strip \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+medicine strip & 3 & unit & production of a medicine strip | IN \\
+corrugated board box & 5.29 & g & market for corrugated board box | RER \\
+transport, freight, lorry, unspecified & 12.45 & kg\*km & market for transport, freight, lorry, unspecified | RoW \\
+transport, freight, sea, container ship with reefer, cooling & 0.23 & t\*km & market for transport, freight, sea, container ship with reefer, cooling | GLO \\
+transport, freight, lorry, unspecified & 4.98 & kg\*km & market for transport, freight, lorry, unspecified | RER \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : tablet}
+\label{tab:lci:tablet}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+tablet & 1 & unit & tablet \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+carboxymethyl cellulose, powder & 92.81 & g & market for carboxymethyl cellulose, powder | GLO \\
+electricity, low voltage & 42.97 & Wh & market group for electricity, low voltage | IN \\
+ethylene glycol & 5.67 & g & market for ethylene glycol | GLO \\
+macrogols & 56.46 & g & macrogols | RoW \\
+magnesium stearate & 5.41 & g & magnesium stearate | RoW \\
+raw penicillium V & 0.66 & g & manufacturing of raw penicillium V | IN \\
+titanium dioxide & 21.04 & g & market for titanium dioxide | RoW \\
+vinyl acetate & 19.59 & g & market for vinyl acetate | GLO \\
+water, ultrapure & 7.73 & g & market for water, ultrapure | RoW \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : production of a medicin cup}
+\label{tab:lci:medicin cup}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+medicin cup & 1 & unit & production of a medicin cup \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+polypropylene, granulate & 2.21 & g & market for polypropylene, granulate | GLO \\
+injection moulding & 2.20 & g & injection moulding | RER \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : avoided - IV}
+\label{tab:lci:avoided plastics}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+avoided plastics & 1 & unit & avoided - IV \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+acrylonitrile-butadiene-styrene copolymer & 1.66 & g & acrylonitrile-butadiene-styrene copolymer production | RER \\
+polyethylene, low density, granulate & 2.13 & g & polyethylene production, low density, granulate | RER \\
+polycarbonate & 6.22 & g & polycarbonate production | RER \\
+polypropylene, granulate & 13.21 & g & polypropylene production, granulate | RER \\
+polystyrene foam slab & 3.35 & g & polystyrene foam slab production | RER \\
+polyvinylidenchloride, granulate & 12.96 & g & polyvinylidenchloride production, granulate | RER \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : stopcock}
+\label{tab:lci:stopcock}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+stopcock & 1 & unit & stopcock \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+injection moulding & 5.47 & g & market for injection moulding | GLO \\
+polycarbonate & 3.58 & g & market for polycarbonate | GLO \\
+polyethylene, high density, granulate & 1.89 & g & market for polyethylene, high density, granulate | GLO \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : avoided -  gloves}
+\label{tab:lci:avoided plastics}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+avoided plastics & 1 & unit & avoided -  gloves \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+polyethylene, low density, granulate & 1.69 & g & polyethylene production, low density, granulate | RER \\
+synthetic rubber & 20.28 & g & synthetic rubber production | RER \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : packaging of glass vials with penicillin G}
+\label{tab:lci:full box with glass vials}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+full box with glass vials & 1 & unit & packaging of glass vials with penicillin G \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+corrugated board box & 0.16 & kg & market for corrugated board box | RoW \\
+folding boxboard carton & 43.28 & g & market for folding boxboard carton | RoW \\
+transport, freight, lorry 16-32 metric ton, EURO6 & 0.13 & t\*km & market for transport, freight, lorry 16-32 metric ton, EURO6 | RoW \\
+transport, freight, sea, bulk carrier for dry goods & 2.41 & t\*km & market for transport, freight, sea, bulk carrier for dry goods | GLO \\
+transport, freight, lorry 16-32 metric ton, EURO6 & 51.85 & kg\*km & market for transport, freight, lorry 16-32 metric ton, EURO6 | RER \\
+glass vial with penicillin & 10 & unit & filling of glass vial | IN \\
+biowaste & -77.50 & g & treatment of biowaste, municipal incineration | GLO \\
+waste polypropylene & -0.10 & kg & market for waste polypropylene | IN \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : manufacturing of raw penicillium V}
+\label{tab:lci:raw penicillium V}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+raw penicillium V & 1 & kg & manufacturing of raw penicillium V \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+acetone, liquid & 0.22 & kg & market for acetone, liquid | RoW \\
+ammonium sulfate & 0.32 & kg & market for ammonium sulfate | RoW \\
+butyl acetate & 0.18 & kg & market for butyl acetate | RoW \\
+electricity, low voltage & 21.98 & kWh & market group for electricity, low voltage | IN \\
+glucose & 5.18 & kg & glucose production | RoW \\
+heat, from steam, in chemical industry & 6.72 & MJ & market for heat, from steam, in chemical industry | RoW \\
+oxygen, liquid & 4.02 & kg & market for oxygen, liquid | RoW \\
+pharmamedia & 1.30 & kg & production of pharmamedia | IN \\
+phenoxy-compound & 0.36 & kg & market for phenoxy-compound | GLO \\
+sodium acetate & 0.26 & kg & sodium acetate | RoW \\
+sodium hydroxide, without water, in 50\% solution state & 0.11 & kg & market for sodium hydroxide, without water, in 50\% solution state | GLO \\
+sulfuric acid & 10.00 & g & market for sulfuric acid | RoW \\
+water, deionised & 19.10 & kg & market for water, deionised | RoW \\
+raw penicillium V & 39.50 & g & manufacturing of raw penicillium V | IN \\
+average incineration residue & -5.35 & g & treatment of average incineration residue, residual material landfill | RoW \\
+biowaste & -1.07 & kg & treatment of biowaste, municipal incineration | GLO \\
+sodium acetate & -30.00 & g & sodium acetate | RoW \\
+\midrule
+\bf{Biosphere flow} &  &  &  \\
+\midrule
+Acetic acid & 0.17 & kg &  \\
+Acetone & 0.22 & kg &  \\
+Butyl acetate & 0.18 & kg &  \\
+Carbon dioxide, fossil & 6.58 & kg &  \\
+Glucose & 60.00 & g &  \\
+P-chlorophenoxyacetic acid & 10.00 & g &  \\
+Sodium hydroxide & 0.11 & kg &  \\
+Sulfuric acid & 10.00 & g &  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : Penicillin V, defined system}
+\label{tab:lci:Penicillin V, defined system}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+Penicillin V, defined system & 1 & unit & Penicillin V, defined system \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+packaged medicine strip & 0.03 & unit & packaging of a medicine strip | IN \\
+medicin cup & 1 & unit & production of a medicin cup | RER \\
+hazardous waste, for incineration & -2.50 & g & treatment of hazardous waste, hazardous waste incineration | CH \\
+waste packaging paper & -2.63 & g & waste packaging paper, Recycled Content cut-off | GLO \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : production of a pair of gloves}
+\label{tab:lci:pair of gloves}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+pair of gloves & 1 & unit & production of a pair of gloves \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+ethylene oxide & 22.40 & g & market for ethylene oxide | RoW \\
+kraft paper & 6.00 & g & market for kraft paper | RoW \\
+packaging film, low density polyethylene & 2.00 & g & market for packaging film, low density polyethylene | GLO \\
+synthetic rubber & 24.00 & g & market for synthetic rubber | GLO \\
+process-specific burdens, hazardous waste incineration plant & 32.00 & g & market for process-specific burdens, hazardous waste incineration plant | RoW \\
+transport, freight, sea, container ship & 0.49 & t\*km & market for transport, freight, sea, container ship | GLO \\
+transport, freight, lorry, unspecified & 4.48 & kg\*km & market for transport, freight, lorry, unspecified | RER \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : Penicillin G, recycling IV}
+\label{tab:lci:Penicillin G, recycling IV}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+Penicillin G, recycling IV & 1 & unit & Penicillin G, recycling IV \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+alchohol wipes & 1 & unit & production of alchohol wipes | DK \\
+full box with glass vials & 0.10 & unit & packaging of glass vials with penicillin G | IN \\
+pair of gloves & 1 & unit & production of a pair of gloves | MY \\
+hazardous waste, for incineration & -43.27 & g & treatment of hazardous waste, hazardous waste incineration, with energy recovery | CH \\
+avoided plastics & -1 & unit & avoided - IV | DK \\
+recycling IV & 1 & unit & recycling IV | DK \\
+IV bag & 1 & unit & production of IV bag | RER \\
+medical connector & 1 & unit & medical connector | GLO \\
+sodium chlorate, powder & 0.90 & g & market for sodium chlorate, powder | RER \\
+stopcock & 1 & unit & stopcock | GLO \\
+water, ultrapure & 100.00 & g & market for water, ultrapure | RER \\
+waste packaging paper & 20.20 & g & waste packaging paper, Recycled Content cut-off | GLO \\
+\midrule
+\bf{Biosphere flow} &  &  &  \\
+\midrule
+Ethanol & 0.36 & g &  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : Penicillin G, recycling}
+\label{tab:lci:Penicillin G, recycling}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+Penicillin G, recycling & 1 & unit & Penicillin G, recycling \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+alchohol wipes & 1 & unit & production of alchohol wipes | DK \\
+full box with glass vials & 0.10 & unit & packaging of glass vials with penicillin G | IN \\
+pair of gloves & 1 & unit & production of a pair of gloves | MY \\
+hazardous waste, for incineration & -9.79 & g & treatment of hazardous waste, hazardous waste incineration, with energy recovery | CH \\
+avoided plastics & -1 & unit & avoided | DK \\
+recycling & 1 & unit & recycling | DK \\
+IV bag & 1 & unit & production of IV bag | RER \\
+medical connector & 1 & unit & medical connector | GLO \\
+sodium chlorate, powder & 0.90 & g & market for sodium chlorate, powder | RER \\
+stopcock & 1 & unit & stopcock | GLO \\
+water, ultrapure & 100.00 & g & market for water, ultrapure | RER \\
+waste packaging paper & 20.20 & g & waste packaging paper, Recycled Content cut-off | GLO \\
+\midrule
+\bf{Biosphere flow} &  &  &  \\
+\midrule
+Ethanol & 0.36 & g &  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : macrogols}
+\label{tab:lci:macrogols}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+macrogols & 1 & kg & macrogols \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+ethylene glycol & 10.33 & g & market for ethylene glycol | GLO \\
+ethylene oxide & 0.99 & kg & market for ethylene oxide | RoW \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : Penicillin G, defined system}
+\label{tab:lci:Penicillin G, defined system}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+Penicillin G, defined system & 1 & unit & Penicillin G, defined system \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+alchohol wipes & 1 & unit & production of alchohol wipes | DK \\
+full box with glass vials & 0.10 & unit & packaging of glass vials with penicillin G | IN \\
+pair of gloves & 1 & unit & production of a pair of gloves | MY \\
+hazardous waste, for incineration & -82.80 & g & treatment of hazardous waste, hazardous waste incineration, with energy recovery | CH \\
+IV bag & 1 & unit & production of IV bag | RER \\
+medical connector & 1 & unit & medical connector | GLO \\
+sodium chlorate, powder & 0.90 & g & market for sodium chlorate, powder | RER \\
+stopcock & 1 & unit & stopcock | GLO \\
+water, ultrapure & 100.00 & g & market for water, ultrapure | RER \\
+waste packaging paper & 20.20 & g & waste packaging paper, Recycled Content cut-off | GLO \\
+\midrule
+\bf{Biosphere flow} &  &  &  \\
+\midrule
+Ethanol & 0.36 & g &  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : medical connector}
+\label{tab:lci:medical connector}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+medical connector & 1 & unit & medical connector \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+acrylonitrile-butadiene-styrene copolymer & 1.20 & g & market for acrylonitrile-butadiene-styrene copolymer | GLO \\
+aluminium alloy, AlLi & 6.00 & g & market for aluminium alloy, AlLi | GLO \\
+injection moulding & 5.51 & g & market for injection moulding | GLO \\
+polycarbonate & 1.24 & g & market for polycarbonate | GLO \\
+polypropylene, granulate & 3.07 & g & market for polypropylene, granulate | GLO \\
+synthetic rubber & 0.50 & g & market for synthetic rubber | GLO \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : recycling gloves}
+\label{tab:lci:recycling gloves}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+recycling gloves & 1 & unit & recycling gloves \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+polyethylene, high density, granulate, recycled & 21.97 & g & market for polyethylene, high density, granulate, recycled | Europe without Switzerland \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Life Cycle Inveotry : production of a medicine strip}
+\label{tab:lci:medicine strip}
+\begin{tabular}{p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}}
+\toprule
+\bf{Reference Flow} & \bf{Amount} & \bf{Unit} & \bf{Provider} \\
+\midrule
+medicine strip & 1 & unit & production of a medicine strip \\
+\midrule
+\bf{Input} &  &  &  \\
+\midrule
+electricity, low voltage & 70.00 & Wh & market group for electricity, low voltage | IN \\
+ethylvinylacetate, foil & 0.50 & g & market for ethylvinylacetate, foil | GLO \\
+extrusion of plastic sheets and thermoforming, inline & 2.47 & g & market for extrusion of plastic sheets and thermoforming, inline | GLO \\
+polyvinylchloride, bulk polymerised & 2.63 & g & market for polyvinylchloride, bulk polymerised | GLO \\
+tablet & 10 & unit & tablet | IN \\
+\bottomrule
+\end{tabular}
+\end{table}
+

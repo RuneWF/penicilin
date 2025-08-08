@@ -498,9 +498,132 @@ class main():
         df = df.drop(bio_idx)
         return df
 
-    def create_LCI_tables(self):
-        
+    def adapting_text_for_ltx_table(self, df_lci):
+        for col in df_lci.columns:
+            for idx, row in df_lci.iterrows():
+                if "Input" in str(row[col]) or "Biosphere flow" in str(row[col]) and "bf" not in row[col]:
+                    df_lci.at[idx, col] = "\\bf{" + row[col] + "}"
+                if "%" in str(row[col]):
+                    df_lci.at[idx, col] =  str(row[col]).replace("%","\\%")
 
+    def unit_conversion_lci_table(self, unit, unit_change, amount):
+        if "ton kilometer" in unit:
+            unit = "t\*km"
+        if "kilogram" in unit:
+            unit = "kg"
+        if "kilowatt hour" in unit:
+            unit = "kWh"
+        if "megajoule" in unit:
+            unit = "MJ"
+        if "cubic meter" in unit:
+            unit = "m$^3$"
+        if unit_change:
+            if amount <= 0.1:
+                if "t\*km" in unit:
+                    unit  = "kg\*km"
+                elif "k" in unit and "km" not in unit:
+                    unit = unit[1:]
+                elif "MJ" in unit:
+                    unit = unit.replace("M","k")
+            else:
+                if "t\*km" in unit:
+                    unit  = "g\*km"
+                elif "k" in unit and "km" not in unit:
+                    unit = unit.replace("k","m")
+                elif "MJ" in unit:
+                    unit = "J"
+
+        return unit
+    
+    def unit_managment_lci_table(self, lci_table):
+        for idx, row in lci_table.iterrows():
+            unit_change = False
+            unit  = str(row["Unit"])
+            amount =  row["Amount"]
+            rf = row["Reference Flow"]
+            if abs(amount) <= 0.1 and isinstance(amount, float) and "unit" not in unit and abs(amount) >= pow(10,-4):
+                new_amount = amount * 1000
+                lci_table.at[idx, "Amount"] = round(new_amount,2)
+                unit_change = True
+                lci_table.at[idx, "Unit"] = self.unit_conversion_lci_table(unit=unit, unit_change=unit_change, amount=amount)
+            elif abs(amount) <=pow(10,-4) and isinstance(amount, float) and "unit" not in unit:
+                new_amount = amount * pow(10,6)
+                lci_table.at[idx, "Amount"] = round(new_amount,2)
+                unit_change = True
+                lci_table.at[idx, "Unit"] = self.unit_conversion_lci_table(unit, unit_change, amount)
+            elif "Input" in rf or "Biosphere" in rf:
+                continue
+            else:
+                lci_table.at[idx, "Amount"] = round(amount,2)
+                lci_table.at[idx, "Unit"] = self.unit_conversion_lci_table(unit=unit, unit_change=unit_change, amount=amount)
+
+    def bold_header_txt(self, lci_table):
+        cols = list(lci_table.columns)
+
+        for icol, col in enumerate(cols):
+            cols[icol] = "\\bf{" + col + "}"
+        lci_table.columns =  cols
+
+    def midrule_before_after_Biosphere_flow(self, lines):
+        try:
+            bio_flow_index = next(i for i, line in enumerate(lines) if r'Biosphere' in line)
+            # Insert before Biosphere
+            insert_at_bio_flow_before = bio_flow_index 
+            lines.insert(insert_at_bio_flow_before, r'\midrule')
+            # Insert after Biosphere
+            insert_at_bio_flow_after = bio_flow_index + 2
+            lines.insert(insert_at_bio_flow_after, r'\midrule')
+        except StopIteration:
+            pass
+
+    def dataframe_to_ltx_table(self, dct_lci):
+        final_txt = ""
+        for lci_table in dct_lci.values():
+
+            self.unit_managment_lci_table(lci_table)
+            self.adapting_text_for_ltx_table(lci_table)
+            self.bold_header_txt(lci_table)
+            latex_str = lci_table.to_latex(
+                escape=False,
+                index=False,
+                column_format='p{5.75cm}p{1.75cm}p{1.25cm}p{6.75cm}@{}',
+                na_rep="",
+                caption=f"Life Cycle Inveotry : {lci_table.iat[0,3]}",
+                label=f"tab:lci:{lci_table.iat[0,0]}",  
+                float_format="%.2f"  
+            )
+            # Split into lines
+            lines = latex_str.splitlines()
+            self.midrule_before_after_Biosphere_flow(lines)
+            # Find where the data rows start (after \midrule)
+            midrule_index = next(i for i, line in enumerate(lines) if r'\midrule' in line)
+
+            # Insert extra \midrule after the third data row
+            insert_at_line_2 = midrule_index + 2  # 3 rows after \midrule
+            lines.insert(insert_at_line_2, r'\midrule')
+
+            # Insert extra \midrule after the third data row
+            insert_at_line_4 = midrule_index + 4  # 3 rows after \midrule
+            lines.insert(insert_at_line_4, r'\midrule')
+
+            
+
+            lines.append('\n')
+
+            # Join back into a string
+            custom_latex = '\n'.join(lines)
+            final_txt += custom_latex
+
+        # Saving the table as .txt file
+        lci_table_txt_file = self.join_path(self.path_github, "data", "lci_tables.txt")
+
+        text_file = open(lci_table_txt_file, "w")
+
+        text_file.write(final_txt)
+
+        text_file.close()
+
+    def create_LCI_tables(self):
         # Read the template into a DataFrame
         lci_table_template_df = pd.read_excel(self.lci_table_template_path)
 
@@ -560,15 +683,17 @@ class main():
                 pass
             # Store the filled DataFrame for this activity
             dct[act["name"]] = lci_table_template_df
+        
+        self.dataframe_to_ltx_table(dct)
 
-        # Write each activity's LCI table to a separate sheet in the Excel file
-        with pd.ExcelWriter(self.lci_table_path, engine='xlsxwriter') as writer:
-            for act, df in dct.items():
-                sheet_name = act
-                # Excel sheet names have a 31 character limit
-                if len(act) > 30:
-                    sheet_name = act[:29] + " " + act[-1]
-                df.to_excel(writer, sheet_name=sheet_name, index=False)
+        # # Write each activity's LCI table to a separate sheet in the Excel file
+        # with pd.ExcelWriter(self.lci_table_path, engine='xlsxwriter') as writer:
+        #     for act, df in dct.items():
+        #         sheet_name = act
+        #         # Excel sheet names have a 31 character limit
+        #         if len(act) > 30:
+        #             sheet_name = act[:29] + " " + act[-1]
+        #         df.to_excel(writer, sheet_name=sheet_name, index=False)
 
     # Function to calculate treatment quantities based on scaling factors from an Excel file
     def treatment_quantity(self):
