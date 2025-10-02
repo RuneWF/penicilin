@@ -84,10 +84,10 @@ def obtain_LCIA_results(calc):
     LCIA_results = init.LCIA_results
 
     # Check if the file exists
-    if os.path.isfile(LCIA_results) or calc is False:
+    if os.path.isfile(LCIA_results) and calc is False:
         df = init.import_LCIA_results(LCIA_results)
 
-    elif os.path.isfile(LCIA_results) is False or calc:
+    elif not os.path.isfile(LCIA_results) or calc:
         # Perform LCIA if file does not exist
         df = perform_LCIA()
         save_totals_to_excel(df)
@@ -150,7 +150,6 @@ def save_totals_to_excel(df):
 
     init.save_LCIA_results(df_tot_T, file_path_tot)
 
-
 def mid_end_legend_text(df):
     leg_idx = []
     for idx in df.index:
@@ -188,84 +187,100 @@ def results_normalization(calc):
     return df_nf
 
 def midpoint_normalized_graph(calc, plot_x_axis):
-    colors = init.color_range(colorname="coolwarm", color_quantity=2)
-
+    # Get colors and data
+    colors = init.color_range(colorname="coolwarm", color_quantity=2)  # ensure >= number of processes
     df = results_normalization(calc)
 
-    # Extract columns and indices for plotting
-    columns_to_plot = df.columns
-    index_list = list(df.index.values)
+    processes = list(df.index)            # each process becomes a bar group member
+    categories = list(df.columns)         # x-axis categories
+    n_proc = len(processes)
+    n_cat = len(categories)
 
-    # Create the plot
+    # Figure and axes
     width_in, height_in, dpi = init.plot_dimensions()
-
-    fig, (ax, ax2) = plt.subplots(2,1, sharex=True, figsize=(width_in, height_in), dpi=dpi)
-    bar_width = 1 / (len(index_list) + 1)
-    index = np.arange(len(columns_to_plot))
-    axes = [ax, ax2]
-    # Plot each group of bars
-    for a in axes:
-        for i, process in enumerate(df.index):
-            values = df.loc[process, columns_to_plot].values
-            color = colors[i % len(colors)]  # Ensure color cycling
-            a.bar(index + i * bar_width, 
-                values, bar_width, 
-                label=process, 
-                color=color,
-                edgecolor="k",
-                zorder=10)
-    
-        a.set_xticks(index + bar_width * (len(index_list) - 1) / 2)
-        a.set_xticklabels(plot_x_axis, rotation=90)
-    x_pos = 0.92  
-    fig.legend(
-        mid_end_legend_text(df),
-        loc='upper left',
-        bbox_to_anchor=(0.86, x_pos),
-        ncol= 1,
-        fontsize=10,
-        frameon=False,
+    fig, (ax_top, ax_mid, ax_bot) = plt.subplots(
+        3, 1, sharex=True,
+        figsize=(width_in, height_in),
+        dpi=dpi,
+        gridspec_kw={'height_ratios': [1.6, 1.1, 1.1], 'hspace': 0.15}
     )
-    
-    # Center y-labels for both axes
-    ax.set_ylabel('miliPerson equivalent per treatment', labelpad=20, va='center')
-    ax.yaxis.set_label_coords(-0.08, 0)
-    ax.set_title("Normalization results for 1 treatment")  
+    axes = [ax_top, ax_mid, ax_bot]
 
-    # zoom-in / limit the view to different portions of the data
-    ax.set_ylim(0.8, 7.1)  # Larger values
-    ax.set_yticks(np.arange(2, 8, 1))  # Set y-ticks from 1 to 7 in steps of 1
+    # X positions for grouped bars
+    x = np.arange(n_cat)
+    # choose total bar group width (<= 0.9). Split across processes
+    group_width = 0.8
+    bar_width = group_width / max(n_proc, 1)
+    # start left so the bars are centered around integer x
+    x_left = x - group_width/2 + bar_width/2
 
-    ax2.set_ylim(0, 0.55)  # most of the data
-    ax2.set_yticks(np.arange(0, 0.6, 0.1))
+    # Draw the same bars on each axes (they differ only by y-lims)
+    for i, proc in enumerate(processes):
+        y = df.loc[proc, categories].values
+        color = colors[i]
+        for a in axes:
+            a.bar(
+                x_left + i*bar_width, y, bar_width,
+                label=proc if a is ax_top else "_nolegend_",  # only top collects legend
+                color=color, edgecolor="k", zorder=3
+            )
 
-    # hide the spines between ax and ax2
-    ax.spines.bottom.set_visible(False)
-    ax2.spines.top.set_visible(False)
-    ax.xaxis.tick_top()
-    ax.tick_params(labeltop=False)
-    ax2.xaxis.tick_bottom()
+    # Y-limits and ticks per panel
+    ax_top.set_ylim(1, 7.1)
+    ax_top.set_yticks(np.arange(1, 8, 1))
 
-    # Minimize the distance of the slanted lines
-    d = 0.5  # smaller value for less distance
-    kwargs = dict(marker=[(-1, -d), (1, d)], markersize=4,
+    ax_mid.set_ylim(0.2, 0.9)
+    ax_mid.set_yticks(np.arange(0.2, 0.91, 0.2))
+
+    ax_bot.set_ylim(0.0, 0.145)
+    ax_bot.set_yticks(np.arange(0.0, 0.141, 0.04))
+
+    # Share x: only show tick labels on bottom
+    ax_bot.set_xticks(x)
+    ax_bot.set_xticklabels(plot_x_axis, rotation=90)
+    ax_top.tick_params(labelbottom=False)
+    ax_mid.tick_params(labelbottom=False)
+
+    # Hide touching spines to create the "break"
+    for a in (ax_top, ax_mid):
+        a.spines['bottom'].set_visible(False)
+    for a in (ax_mid, ax_bot):
+        a.spines['top'].set_visible(False)
+
+    # Draw diagonal "break marks"
+    d = 0.5  # size of diagonals relative to marker
+    kwargs = dict(marker=[(-1, -d), (1, d)], markersize=6,
                   linestyle="none", color='k', mec='k', mew=1, clip_on=False)
-    ax.plot([0, 1], [0, 0], transform=ax.transAxes, **kwargs)
-    ax2.plot([0, 1], [1, 1], transform=ax2.transAxes, **kwargs)
+    # between top and middle
+    ax_top.plot([0, 1], [0, 0], transform=ax_top.transAxes, **kwargs)
+    ax_mid.plot([0, 1], [1, 1], transform=ax_mid.transAxes, **kwargs)
+    # between middle and bottom
+    ax_mid.plot([0, 1], [0, 0], transform=ax_mid.transAxes, **kwargs)
+    ax_bot.plot([0, 1], [1, 1], transform=ax_bot.transAxes, **kwargs)
 
-    kwargs2 = dict(markersize=2,
-                  linestyle="--", color='k', mec='k', mew=0.5, clip_on=False, alpha=0.3)
-    ax2.plot([0, 1], [1.07, 1.07], transform=ax2.transAxes, **kwargs2,zorder=20)
+    # Grids
+    for a in axes:
+        a.grid(axis='y', linestyle='--', alpha=0.6, zorder=0)
 
-    output_file = init.join_path(
-        init.path_github,
-        r'figures\normalized_results_midpoint.png'
+    # Labels, title, legend
+    fig.supylabel('Milliperson equivalent per treatment', x=0.03)
+    ax_top.set_title("Normalization results for 1 treatment")
+
+    handles, labels = ax_top.get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))  # remove duplicates
+    fig.legend(
+        by_label.values(), mid_end_legend_text(df),
+        loc='upper right',
+        bbox_to_anchor=(0.83, 0.88),
+        frameon=False
     )
-    ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
-    ax2.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
-    plt.tight_layout()
-    plt.savefig(output_file, dpi=dpi, format='png', bbox_inches='tight')
+
+    # Layout & save
+    plt.subplots_adjust(hspace=0.05, right=0.82)  # room for legend on the right
+    output_file = init.join_path(init.path_github, 'figures', 'normalized_results_midpoint.png')
+    fig.savefig(output_file, dpi=dpi, format='png', bbox_inches='tight')
     plt.show()
+
 
 def extract_fu_penG_contribution():
     db = init.db
@@ -348,7 +363,7 @@ def pen_G_contribution(contr_excel_path):
 
 def contribution_LCIA_calc(calc):
     contr_excel_path = init.join_path(init.results_path, r"LCIA\penG_contribution.xlsx")
-    if os.path.isfile(contr_excel_path) or calc is False:
+    if os.path.isfile(contr_excel_path) and calc is False:
         df_contr_share = init.import_LCIA_results(contr_excel_path)
  
     elif os.path.isfile(contr_excel_path) is False or calc:
@@ -368,7 +383,7 @@ def act_to_string_simplification(text):
         text = "gloves"
     if "incineration" in text.lower():
         text = "incineration"
-    if "packaging paper" in text.lower():
+    if "packaging paper" in text.lower() or "pulp" in text.lower():
         text = "packaging"
     if "iv bag" in text.lower():
         text = "IV bag"
@@ -474,7 +489,7 @@ def sort_act_in_production(dct):
             prod_dct[key] = {}
             if key == "Prod.":
                 prod_keys = list(item.keys())
-                prod_keys.sort()
+                prod_keys.reverse()
                 for pk in prod_keys:
                     prod_dct[key].update({pk : item[pk]})
             else:
@@ -569,6 +584,6 @@ def create_results_figures(reload=False, calc=False):
             string[0] = 'GWP'
         plot_x_axis_mid.append(string[0])
     
-    midpoint_normalized_graph(calc, plot_x_axis_mid)
+    # midpoint_normalized_graph(calc, plot_x_axis_mid)
     penG_contribution_plot(calc)
 

@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from scipy import stats
 
 import sensitvity_countries as stc
+import monte_carlo_energy as mce
 
 import main as m
 
@@ -618,9 +619,9 @@ def clinical_treatment_plot():
     ax.set_xticklabels(df_pneumonia.index)
     ax.set_ylabel('kilograms of CO$_2$-eq per treatment')
     ax.set_title("GWP for clinical treatment scenarios of pneumonia")
-    y_ticks = np.linspace(0, 20, 11)
-    ax.set_yticks(y_ticks)
-    ax.set_ylim(0, 20.01)
+    # y_ticks = np.linspace(0, 20, 11)
+    # ax.set_yticks(y_ticks)
+    # ax.set_ylim(0, 20.01)
     ax.legend(
         labels=idx_lst[:2], 
         frameon=False)
@@ -638,6 +639,7 @@ def perform_sens_uncert_analysis(mc_base=10, mc_power=4, reload=False, calc=Fals
 
     sensitivity_plot(reload, sensitivty, calc)
     monte_carlo_plot(reload, sensitivty, calc, mc_base, mc_power)
+    mce.plot_monte_carlo_energy(samples=pow(mc_base, mc_power))
     sens_EoL_plot(calc)
     stc.countries_sens_plot(calc, sensitivty)
     clinical_treatment_plot()

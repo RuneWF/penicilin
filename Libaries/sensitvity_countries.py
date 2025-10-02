@@ -172,7 +172,7 @@ def results_correction(func_unit, df_dct, elec_val_V, elec_val_G):
 
 
     G = "'packaging of glass vials with penicillin G'"
-    V = "'packaging of a medicine strip'"
+    V = "'production of a medicine strip'"
 
     penG_prod_share, penV_prod_share = calc_penicillin_impact(elec_val_V, elec_val_G)
     for pen, res_dct in impact_dct.items():
@@ -193,8 +193,10 @@ def results_correction(func_unit, df_dct, elec_val_V, elec_val_G):
         for country, val_dct in res_dct.items():
             for key, val in val_dct.items():
                 if ("transport" in str(key) or "electricity" in str(key) or "raw penicillium" in str(key)) and "G" in pen:
+                    print(G + f" (unit, {country[-2:]}, None)")
                     val_dct[G + f" (unit, {country[-2:]}, None)"] -= val
                 elif ("transport" in str(key) or "electricity" in str(key) or "raw penicillium" in str(key)) and "V" in pen:
+                    print(V + f" (unit, {country[-2:]}, None)")
                     val_dct[V + f" (unit, {country[-2:]}, None)"] -= val
 
     return impact_dct
@@ -256,10 +258,10 @@ def set_y_ticks(p, ax):
         y_ticks = np.linspace(0, 1, 11)
         ax.set_yticks(y_ticks)
         ax.set_ylim(0, 1.01)
-    else:
-        y_ticks = np.linspace(0, 0.06, 7)
-        ax.set_yticks(y_ticks)
-        ax.set_ylim(0, 0.0601)
+    # else:
+    #     y_ticks = np.linspace(0, 1, 7)
+    #     ax.set_yticks(y_ticks)
+    #     ax.set_ylim(0, 1)
 
 def penicillin_G_V_to_IV_oral(pen_type):
     if "G" in pen_type:

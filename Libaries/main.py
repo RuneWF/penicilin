@@ -12,7 +12,6 @@ import bw2data as bd
 import brightway2 as bw 
 import bw2io as bi
 
-
 class main():
     # initialization of all the required parameters
     def __init__(self, desktop_name="Desktop", matching_database="ev391cutoff", bw_project="Penicillin"):
@@ -190,7 +189,6 @@ class main():
 
         data.to_excel(temp_path, index=False)
         try:
-            print("database name = ", data.columns[1])
             imp = bi.ExcelImporter(temp_path)  # the path to your inventory excel file
             imp.apply_strategies()
         
@@ -210,7 +208,6 @@ class main():
             # Print unlinked items if needed
             if unlinked_items:
                 print(unlinked_items)
-            print("database name = ",data.columns[1])
             
         except ValueError:
             print(data.columns[1])
@@ -403,9 +400,7 @@ class main():
         all_methods = midpoint_method + endpoint_method
 
         # Filter methods related to ecotoxicity
-        meth_ecotoxicity = [m for m in all_methods if "ecotoxicity" in m[1] or "ecosystem quality" in m[1]]
-
-        return meth_ecotoxicity
+        return [m for m in all_methods if "ecotoxicity" in m[1] or "ecosystem quality" in m[1]]
 
     def add_activity_to_biosphere3(self, df, act_dct):
         # Filter methods related to ecotoxicity
@@ -518,7 +513,7 @@ class main():
         if "cubic meter" in unit:
             unit = "m$^3$"
         if unit_change:
-            if amount <= 0.1:
+            if amount <= 0.1 and amount >= pow(10,-4):
                 if "t\*km" in unit:
                     unit  = "kg\*km"
                 elif "k" in unit and "km" not in unit:
@@ -551,7 +546,7 @@ class main():
                 lci_table.at[idx, "Amount"] = round(new_amount,2)
                 unit_change = True
                 lci_table.at[idx, "Unit"] = self.unit_conversion_lci_table(unit, unit_change, amount)
-            elif "Input" in rf or "Biosphere" in rf:
+            elif "Input" in rf or "Biosphere" in rf or not rf:
                 continue
             else:
                 lci_table.at[idx, "Amount"] = round(amount,2)
@@ -605,8 +600,6 @@ class main():
             # Insert extra \midrule after the third data row
             insert_at_line_4 = midrule_index + 4  # 3 rows after \midrule
             lines.insert(insert_at_line_4, r'\midrule')
-
-            
 
             lines.append('\n')
 
@@ -685,15 +678,7 @@ class main():
             dct[act["name"]] = lci_table_template_df
         
         self.dataframe_to_ltx_table(dct)
-
-        # # Write each activity's LCI table to a separate sheet in the Excel file
-        # with pd.ExcelWriter(self.lci_table_path, engine='xlsxwriter') as writer:
-        #     for act, df in dct.items():
-        #         sheet_name = act
-        #         # Excel sheet names have a 31 character limit
-        #         if len(act) > 30:
-        #             sheet_name = act[:29] + " " + act[-1]
-        #         df.to_excel(writer, sheet_name=sheet_name, index=False)
+        return dct
 
     # Function to calculate treatment quantities based on scaling factors from an Excel file
     def treatment_quantity(self):
