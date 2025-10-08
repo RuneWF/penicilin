@@ -9,12 +9,11 @@ from scipy import stats
 
 import sensitvity_countries as stc
 import monte_carlo_energy as mce
+import penicillin_cf_sensitivity as pcs
 
 import main as m
 
 init = m.main()
-
-
 
 
 # Function to obtain activities and their exchanges from the database
@@ -532,7 +531,6 @@ def sens_EoL_plot(calc=False):
             loc='upper left',
             bbox_to_anchor=(0.995, 1),
             ncol= 1,  # Adactjust the number of columns based on legend size
-            fontsize=10,
             frameon=False
         )
 
@@ -550,8 +548,8 @@ def sens_EoL_plot(calc=False):
 
 def clinical_treatment_initialization():
     df = init.import_LCIA_results(init.LCIA_results)
-    ic_gwp = init.lcia_impact_method()[1]
-    df_gwp = df[ic_gwp]
+    col_gwp = df.columns[1]
+    df_gwp = df[col_gwp]
     idx_gwp = list(df_gwp.index)
 
     idx_lst = [
@@ -560,7 +558,7 @@ def clinical_treatment_initialization():
     "Combined"
     ]
 
-    df_pneumonia = pd.DataFrame(0, index=idx_lst, columns=[ic_gwp], dtype=object)
+    df_pneumonia = pd.DataFrame(0, index=idx_lst, columns=[col_gwp], dtype=object)
 
     days = 5
     daily_adminstrations = 4
@@ -574,18 +572,18 @@ def clinical_treatment_initialization():
 
     for idx, row in df_pneumonia.iterrows():
         if "IV" in idx:
-            row[ic_gwp] = df_gwp.at[idx_gwp[0]] * adminstrations
+            row[col_gwp] = df_gwp.at[idx_gwp[0]] * adminstrations
         elif "Oral" in idx:
-            row[ic_gwp] = df_gwp.at[idx_gwp[1]] * adminstrations
+            row[col_gwp] = df_gwp.at[idx_gwp[1]] * adminstrations
         else:
             dct = {}
             for x, (key, item) in enumerate(days_com_dct.items()):
                 dct[key] = df_gwp.at[idx_gwp[x]] * item * daily_adminstrations
-            row[ic_gwp] = dct
+            row[col_gwp] = dct
 
-    iv_impact = df_pneumonia.at[idx_lst[0], ic_gwp]
-    oral_impact = df_pneumonia.at[idx_lst[1], ic_gwp]
-    comb_impact_dct  = df_pneumonia.at[idx_lst[2], ic_gwp]
+    iv_impact = df_pneumonia.at[idx_lst[0], col_gwp]
+    oral_impact = df_pneumonia.at[idx_lst[1], col_gwp]
+    comb_impact_dct  = df_pneumonia.at[idx_lst[2], col_gwp]
     comb_impact_lst = np.array(list(comb_impact_dct.values()))
     comb_impact = comb_impact_lst.sum()
 
@@ -633,16 +631,14 @@ def clinical_treatment_plot():
     plt.show()
 
         
-
 # Main function to perform sensitivity and uncertainty analysis
-def perform_sens_uncert_analysis(mc_base=10, mc_power=4, reload=False, calc=False, sensitivty=False):
-
-    sensitivity_plot(reload, sensitivty, calc)
-    monte_carlo_plot(reload, sensitivty, calc, mc_base, mc_power)
-    mce.plot_monte_carlo_energy(samples=pow(mc_base, mc_power))
+def perform_sens_uncert_analysis(samples=1000, calc=False):
     sens_EoL_plot(calc)
-    stc.countries_sens_plot(calc, sensitivty)
+    stc.countries_sens_plot(calc)
+    mce.plot_monte_carlo_background_uncertainty(samples=samples, calc=calc)
+    pcs.penicillin_cf_sensitivity_plot()
     clinical_treatment_plot()
+
     
 
 

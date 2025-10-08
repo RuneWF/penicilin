@@ -6,7 +6,8 @@ import bw2data as bd
 import bw2calc as bc
 import matplotlib.pyplot as plt
 from scipy.stats import ttest_ind
-from matplotlib.ticker import PercentFormatter
+from pathlib import Path
+
 
 import main as m
 
@@ -227,99 +228,210 @@ def enrich_activity_uncertainties(activity, recurse=True, depth_limit=3, dry_run
     return changed
 
 # --- Run it ---
+def create_uncertainty_func_unit(samples):
 
-def obtain_monte_carlo_samples(samples):
-    penG = get_activity((init.db.name, "ca75fd45911fc797bc543d0f564fa97d"))
-    penV = get_activity((init.db.name, "8a5478237433fca863df52bd6c71ffcf"))
+    penG = get_activity((init.db.name, "ca75fd45911fc797bc543d0f564fa97d")) # production of Penicillin G
+    penV = get_activity((init.db.name, "8a5478237433fca863df52bd6c71ffcf")) # production of Penicillin V
 
     penicllin_activities = [
         penG, 
         penV
-    ]
+        ]
     for pen in penicllin_activities:
-        num_changed = enrich_activity_uncertainties(pen, recurse=True, depth_limit=3, dry_run=False)
-        print(f"Updated {num_changed} exchanges in {pen} with constructed lognormal uncertainty.")
-    
+        enrich_activity_uncertainties(pen, depth_limit=5)
     
     uncert_dct = {}
     uncert_func_unit = []
-    uncert_func_unit.append({penG : 1})
-    uncert_func_unit.append({penV : 1})
-    
 
-    for exc in penG.exchanges():
-        if exc["type"] == "technosphere" and ("heat" in exc["name"] or "elec" in exc["name"]):
+    for pen in penicllin_activities:
+        uncert_dct[pen] = {}
+        # uncert_func_unit[pen] = []
+        for exc in pen.exchanges():
+            if exc["type"] == "technosphere":
+                
+                s = exc.get('scale')
+                l = exc.get('loc')
+                # Initialize the key if it does not exist
+                penicillin_qunantity = 1
+                for up in penG.upstream():
+                    if up.output != penG:
+                        penicillin_qunantity = up["amount"]
+                if exc.input not in uncert_dct[pen]:
+                    uncert_func_unit.append({exc.input : exc["amount"]*penicillin_qunantity})
+                uncert_dct[pen][exc.input] = np.random.lognormal(mean=l, sigma=s, size=samples)/exc["amount"]
 
-            uncert_func_unit.append({exc.input : exc["amount"]})
-            s = exc.get('scale')
-            l =  exc.get('loc')
+    df_uncert = pd.DataFrame(uncert_dct)
 
-            uncert_dct[exc.input] = np.random.lognormal(mean=l, sigma=s, size=samples)/exc["amount"]
-    return uncert_func_unit, uncert_dct
+    return df_uncert, uncert_func_unit
 
-def calculate_impact(samples):
-    uncert_func_unit, uncert_dct = obtain_monte_carlo_samples(samples)
-    init = m.main()
+def update_index_colunms(df, df_uncert):
+    try:
+        df.index = [idx["name"] for idx in df.index]
+    except TypeError:
+        pass
+
+    try:
+        df_uncert.index = [idx["name"] for idx in df_uncert.index]
+        df_uncert.columns = [col["name"] for col in df_uncert.columns]
+    except TypeError:
+        pass
+
+def put_uncert_in_dataframe(pen_compact_idx, df_impact_sens, samples):
+    df_categorized_uncert = pd.DataFrame(0, index=[key for key in pen_compact_idx.keys()], columns=df_impact_sens.columns, dtype=object)
+    for col in df_categorized_uncert.columns:
+        for _, row in df_categorized_uncert.iterrows():
+            row[col] = [0] * samples
+            
+
+    return df_categorized_uncert
+
+def category_impact(pen_compact_idx, df_impact_sens, df_impact):
+    df_categorized = pd.DataFrame(0, index=[key for key in pen_compact_idx.keys()], columns=df_impact_sens.columns, dtype=object)
+    df_categorized
+    for col in df_impact.columns:
+        for cat, st_lst in pen_compact_idx.items():
+            for idx, row in df_impact.iterrows():
+                if not any(st in idx for st in st_lst):
+                    df_categorized.loc[cat, col] += row[col]
+        # df_categorized.loc["Total", col] = df_impact[col].sum()
+        print(df_impact[col].sum()*1000)
+
+    return df_categorized     
+
+def calc_uncertainty_impact(samples, calc):
+    df_uncert, uncert_func_unit = create_uncertainty_func_unit(samples)
     init.database_setup(reload=True)
-    
+    path = init.results_path
+
+    penicillin_background_uncert_file = Path.joinpath(path, "sensitivity", "penicillin_background_uncert.xlsx")
+
     bd.projects.set_current(init.bw_project)
-    df = pd.DataFrame(0, index=[list(fu.keys())[0] for fu in uncert_func_unit], columns=[init.lcia_impact_method()[1]], dtype=object)
-    bd.Database(init.db.name)
-    # print(f'Total amount of calculations: {len(impact_categories) * len(idx_lst)}')
-    # # Set up and perform the LCA calculation
-    bd.calculation_setups[f'pen G energy uncert'] = {'inv': uncert_func_unit, 'ia': [init.lcia_impact_method()[1]]}
-        
-    mylca = bc.MultiLCA(f'pen G energy uncert')
-    res = mylca.results
+    if not Path.exists(penicillin_background_uncert_file) or calc:
+        df = pd.DataFrame(0, index=[list(fu.keys())[0] for fu in uncert_func_unit], columns=[init.lcia_impact_method()[1]], dtype=object)
+        bd.Database(init.db.name)
+        # # Set up and perform the LCA calculation
+        calc_setup_name = f'penicillin production uncert'
+        bd.calculation_setups[calc_setup_name] = {'inv': uncert_func_unit, 'ia': [init.lcia_impact_method()[1]]}
+            
+        mylca = bc.MultiLCA(calc_setup_name)
+        res = mylca.results
 
-    df = pd.DataFrame(res, index=[list(fu.keys())[0] for fu in uncert_func_unit], columns=[init.lcia_impact_method()[1]], dtype=object)
+        df = pd.DataFrame(res, index=[list(fu.keys())[0] for fu in uncert_func_unit], columns=[init.lcia_impact_method()[1]], dtype=object)
 
-    return df, uncert_dct
+    elif Path.exists(penicillin_background_uncert_file) or not calc:
+        df = init.import_LCIA_results(penicillin_background_uncert_file)
 
-def plot_monte_carlo_energy(samples=1000):
+    update_index_colunms(df, df_uncert)
 
-    df, uncert_dct = calculate_impact(samples)
-    elec_act = df.iloc[2].to_frame().columns[0]
-    heat_act = df.iloc[3].to_frame().columns[0]
+    df_impact_sens = pd.DataFrame(None, index=df_uncert.index, columns=df_uncert.columns, dtype=object)
 
-    elec = df.iloc[2,0]
-    heat = df.iloc[3,0]
+    for col in df_uncert.columns:
+        for idx, row in df_uncert.iterrows():
+            lst = row[col]
 
-    penG_impact = df.iloc[0,0] - elec - heat
-    penV_impact = df.iloc[1,0] - elec - heat
+            df_impact_sens.at[idx, col] = lst * df.loc[idx].to_numpy()[0]
+
+    mask = df_uncert.notna()
+
+    df_impact = pd.DataFrame(None, index=df_uncert.index, columns=df_uncert.columns, dtype=object)
+
+    for col in df_impact.columns:
+        for idx, row in df_impact.iterrows():
+            row[col] = df.loc[idx].to_numpy()[0]
+
+    df_impact = df_impact * mask
     
-    penicillin_impact = [penG_impact, penV_impact]
-    weight = [0.0006, 0.00066]
+    pen_compact_idx = {
+        "Fermentation": ["pharmamedia", "phenyl", "phenoxy", "glucose", "oxygen", "tap water", "sulfate"],
+        "Extraction ": ["butyl", "sulfuric"],
+        "Purification": ["sodium", "acetone"],
+        "Energy": ["heat", "electricity"],
+        "Waste": ["incineration", "penicillium"]
+    }
 
-    elec = df.iloc[2,0]
-    heat = df.iloc[3,0]
-    lst = []
+    df_categorized_uncert = put_uncert_in_dataframe(pen_compact_idx, df_impact_sens, samples)
+    for key, st in pen_compact_idx.items():
+        for col in df_impact_sens.columns:
+            for idx, row in df_impact_sens.iterrows():
+                if any(s in idx for s in st):
+                    lst = row[col]
+                    # print(lst)
+                    if lst is not None:
+                        try:
+                            for i, val in enumerate(lst):
+                                df_categorized_uncert.at[key, col][i] += val
+                        except TypeError as e:
+                            # print(e)
+                            pass
+        df_categorized_uncert.at[key, col] = np.array(df_categorized_uncert.at[key, col])
+    
+    df_categorized = category_impact(pen_compact_idx, df_impact_sens, df_impact)
+
+    for col in df_categorized_uncert.columns:
+        for idx, row in df_categorized_uncert.iterrows():
+            rest_sum = df_categorized.at[idx, col]
+            # cat_impact = df_categorized.at[idx, col]
+            row[col] = [(i + rest_sum )*1000 for i in row[col]]
+
+    return df_categorized_uncert
+
+def plot_monte_carlo_background_uncertainty(samples=1000, calc=False):
+    df_categorized_uncert = calc_uncertainty_impact(samples, calc)
+    title_identifier = [r"$\bf{Fig\ A:}$ ", r"$\bf{Fig\ B:}$ "]
+
     width_in, height_in, dpi = init.plot_dimensions()
-    colors = init.color_range(colorname="coolwarm", color_quantity=2)
-    plt.figure(figsize=(width_in, height_in), dpi=dpi)
-    for x, pen in enumerate(penicillin_impact):
-        impact = [
-            (pen + elec * uncert_dct[elec_act][sample] + heat * uncert_dct[heat_act][sample])*weight[x]*1000  for sample in range(samples)
-            ]
-        lst.append(impact)
-        plt.hist(impact, bins=40, density=True, alpha=0.6, edgecolor='black', color=colors[x])
-    legend = ["Pen G", "Pen V"]
-    plt.legend(legend)
-    plt.title('Monte Carlo simulation of the GWP for energy use in penicillin manufacturing')
-    plt.xlabel(r"grams of CO$_2$-eq per treatment")
-    plt.ylabel('Probability (%)')
-    ax = plt.gca()
-    y_ticks = ax.get_yticks()
-    ax.set_yticks(y_ticks)
-    ax.set_yticklabels(['{:.0f}%'.format(y * 100) for y in y_ticks])
-    ax.set_ylim(0,0.27)
-    
-    plt.tight_layout()
-    output_file = init.join_path(
-        init.path_github,
-        r'figures\monte_carlo_energy.png'
+    fig, axes = plt.subplots(1,len(df_categorized_uncert.columns), figsize=(width_in, height_in), dpi=dpi)
+    plt.subplots_adjust(wspace=0.3)
+
+    fig.suptitle(
+        f'Monte Carlo simulation of background uncertainty (n={samples})',  # Your global title
+        fontsize=16, y=0.95        # y adjusts vertical position
     )
-    plt.savefig(output_file, dpi=dpi, format='png', bbox_inches='tight')
+
+    colors = init.color_range(colorname="coolwarm", color_quantity=2)
+    blue = colors[0]
+    red = colors[1]
+    for a, col in enumerate(df_categorized_uncert.columns):
+        ax = axes[a]
+        data = df_categorized_uncert[col]
+        bp = ax.boxplot(data, patch_artist = True, zorder=3)
+        ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
+        ax.set_xticklabels(list(df_categorized_uncert.index), rotation=45)
+        ax.set_ylabel('grams of CO$_2$-eq per treatment')
+        ax.set_title(f'{title_identifier[a]}Penicillin {col[-1]} production', loc="left")
+        
+        for patch, _ in zip(bp['boxes'], blue):
+            patch.set_facecolor(blue)
+
+        for whisker in bp['whiskers']:
+            whisker.set(color =blue,
+                        linewidth = 2,
+                        )
+
+        # changing color and linewidth of
+        for cap in bp['caps']:
+            cap.set(color =blue,
+                    linewidth = 2)
+
+        for median in bp['medians']:
+            median.set(color = red,
+                    linewidth = 1)
+
+        # changing style of fliers
+        for flier in bp['fliers']:
+            flier.set(marker ='.',
+                    color = blue,
+                    markeredgecolor=red,
+                    markersize=3 
+                )
+            
+    plt.tight_layout()
+    plt.savefig(
+        Path.joinpath(init.figure_folder, "monte_carlo_penicillin_background_uncert.png"), 
+        dpi=dpi, 
+        format='png', 
+        bbox_inches='tight'
+        )
+    
     plt.show()
 
-    print(ttest_ind(lst[0], lst[1]))

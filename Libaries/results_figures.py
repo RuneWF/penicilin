@@ -8,6 +8,8 @@ import bw2calc as bc
 import pandas as pd
 from copy import deepcopy as dc
 
+from mid_to_endpoint_contribution import mid_to_endpoint_contribution_plot
+
 import main as m
 
 init = m.main()
@@ -281,7 +283,6 @@ def midpoint_normalized_graph(calc, plot_x_axis):
     fig.savefig(output_file, dpi=dpi, format='png', bbox_inches='tight')
     plt.show()
 
-
 def extract_fu_penG_contribution():
     db = init.db
     func_unit = {}
@@ -376,7 +377,7 @@ def act_to_string_simplification(text):
         text = str(text)
 
     if "glass vials" in text.lower():
-        text = "glass vial"
+        text = "vial"
     if "wipe" in text.lower():
         text = "wet wipe"
     if "gloves" in text.lower():
@@ -396,7 +397,7 @@ def act_to_string_simplification(text):
     if "sodium chlorate" in text.lower():
         text = "sodium chlorate"
     if "penicillium g" in text.lower():
-        text = "penicillium"
+        text = "prod."
 
     return text
 
@@ -419,7 +420,7 @@ def data_reorginization(df_contr_share):
 
 def contribution_analysis_data_sorting(calc):
     pen_comp_cat = {
-        "Prod.": ["penicil", "vial"],
+        "Penicillin": ["penicil", "vial"],
         "Aux. mat.": ["wipe", "glove"],
         "IV": ["stopcock", "water", "sodium", " connector", "IV"],
         "Disposal": ["waste"]
@@ -440,6 +441,9 @@ def contribution_analysis_data_sorting(calc):
                     txt = act_to_string_simplification(idx)
                     if txt not in leg_txt:
                         leg_txt.append(f"{cat}: {txt}")
+        if "Pen." in cat:
+            pen_cat_sorted[cat].reverse()
+            
 
     return df_contr_share, pen_cat_sorted, leg_txt
 
@@ -451,14 +455,23 @@ def lcia_categories():
 
     return ic_plt
 
+def activity_color(pen_cat_sorted, colors):
+    color_idx = 0
+    act_color_dct = {}
+    for lst in pen_cat_sorted.values():
+        for act in lst:
+            act_color_dct[act] = colors[color_idx]
+            color_idx += 1
+            # print(act)
+
+    return act_color_dct
+
 def pen_G_contribution_results_to_dct(calc):
     dct = {}
-    dct_tot = {}
     ic_plt = lcia_categories()
     df_contr_share, pen_cat_sorted, leg_txt = contribution_analysis_data_sorting(calc)
     for ic in ic_plt:
         dct[ic] = {}
-        dct_tot[ic] = {}
         temp_dct = {}
         
         for cat, act_lst in pen_cat_sorted.items():
@@ -471,14 +484,16 @@ def pen_G_contribution_results_to_dct(calc):
                 temp_dct[cat].update({act : val})
             
         dct[ic].update(temp_dct)
-    
-    return dct, leg_txt
+    colors = init.color_range(colorname="coolwarm", color_quantity=len(leg_txt))
+    return dct, leg_txt, activity_color(pen_cat_sorted, colors)
 
 def text_for_x_axis():
-    return ("GWP", "Ecosystem\n damage", "Human health\n damage", "Natural \nresources damage")
+    return ("GWP", "Ecosystem\n damage", "Human health\n damage", "Natural \nresources scaricity")
 
 def hatch_styles():
-    return ["\\\\", "OO", "++", "**", "O."]
+    return ["\\\\", "..", "++", "**", "O."]
+
+
 
 def sort_act_in_production(dct):
     prod_dct = {}
@@ -503,11 +518,11 @@ def penG_contribution_plot(calc):
     output_file_contr = r"C:\Users\ruw\Desktop\RA\penicilin\figures\penG_contribution.png"
     width = 0.5
     
-    dct, leg_txt = pen_G_contribution_results_to_dct(calc)
-    dct_sorted = sort_act_in_production(dct)
-    bottom = np.zeros(len(dct.keys()))
+    dct_sorted, leg_txt, act_color_dct = pen_G_contribution_results_to_dct(calc)
+    # dct_sorted = sort_act_in_production(dct)
+    bottom = np.zeros(len(dct_sorted.keys()))
 
-    colors = init.color_range(colorname="coolwarm", color_quantity=len(dct.keys()))
+    
     width_in, height_in, dpi = init.plot_dimensions()
     fig, ax = plt.subplots(figsize=(width_in, height_in), dpi=dpi)
     for idx, dct_ in enumerate(dct_sorted.values()):
@@ -519,10 +534,10 @@ def penG_contribution_plot(calc):
                     width, 
                     label=str(act), 
                     bottom=bottom[idx],
-                    color=colors[col_idx],
+                    color=act_color_dct[act],
                     edgecolor="k", 
-                    hatch=hatch_styles()[hatch],
-                    alpha=.9,
+                    # hatch=hatch_styles()[hatch],
+                    # alpha=1/(1+hatch),
                     zorder=10
                 )
 
@@ -546,7 +561,6 @@ def penG_contribution_plot(calc):
             loc='upper left',
             bbox_to_anchor=(0.995, 1.02),
             ncol= 1,  # Adactjust the number of columns based on legend size
-            fontsize=10,
             frameon=False
         )
     ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
@@ -559,7 +573,6 @@ def penG_contribution_plot(calc):
     plt.savefig(output_file_contr, dpi=300, format='png', bbox_inches='tight')
     plt.show()
  
-
 def create_results_figures(reload=False, calc=False):
     init.database_setup(reload=reload)
     # Set the current Brightway project
@@ -584,6 +597,9 @@ def create_results_figures(reload=False, calc=False):
             string[0] = 'GWP'
         plot_x_axis_mid.append(string[0])
     
-    # midpoint_normalized_graph(calc, plot_x_axis_mid)
-    penG_contribution_plot(calc)
+    midpoint_normalized_graph(calc, plot_x_axis_mid)
+    penG_contribution_plot(calc=calc)
+    
+    results_df = obtain_LCIA_results(calc=False)
+    mid_to_endpoint_contribution_plot(results_df)
 

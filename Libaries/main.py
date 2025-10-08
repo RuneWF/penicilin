@@ -42,6 +42,7 @@ class main():
         # Path to save the LCI tables Excel file
         self.lci_table_path = self.join_path(self.lci_table_folder, r"LCI_tables.xlsx")
 
+        self.figure_folder = self.lci_table_folder = self.results_folder(self.path_github, r"figures")
 
         # LCIA method variable
         self.all_methods = []
@@ -173,7 +174,7 @@ class main():
             plt.rcParams.update({
                 'font.size': 11,      # General font size
                 'axes.titlesize': 13, # Title font size
-                'axes.labelsize': 11, # Axis labels font size
+                'axes.labelsize': 10, # Axis labels font size
                 'legend.fontsize': 9 # Legend font size
             }) 
 
