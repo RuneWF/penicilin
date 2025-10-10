@@ -262,7 +262,7 @@ def value_correction_dct():
 
 def pen_contries_cat_dct():
     return {
-    "P. manufacturing": ["raw penicillium"],
+    "P. chemicals": ["raw penicillium"],
     "P. packaging" : ["strip", "vial", "secondary"],
     "P. Electricity": ["electricity"],
     "Transport" : ["transport"],

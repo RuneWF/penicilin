@@ -173,7 +173,7 @@ class main():
         else:
             plt.rcParams.update({
                 'font.size': 11,      # General font size
-                'axes.titlesize': 13, # Title font size
+                'axes.titlesize': 12, # Title font size
                 'axes.labelsize': 10, # Axis labels font size
                 'legend.fontsize': 9 # Legend font size
             }) 

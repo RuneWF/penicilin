@@ -200,13 +200,13 @@ def midpoint_normalized_graph(calc, plot_x_axis):
 
     # Figure and axes
     width_in, height_in, dpi = init.plot_dimensions()
-    fig, (ax_top, ax_mid, ax_bot) = plt.subplots(
-        3, 1, sharex=True,
+    fig, (ax_top, ax_bot) = plt.subplots(
+        2, 1, sharex=True,
         figsize=(width_in, height_in),
         dpi=dpi,
-        gridspec_kw={'height_ratios': [1.6, 1.1, 1.1], 'hspace': 0.15}
+        gridspec_kw={'height_ratios': [1.6, 1.1], 'hspace': 0.1}
     )
-    axes = [ax_top, ax_mid, ax_bot]
+    axes = [ax_top, ax_bot]
 
     # X positions for grouped bars
     x = np.arange(n_cat)
@@ -231,23 +231,23 @@ def midpoint_normalized_graph(calc, plot_x_axis):
     ax_top.set_ylim(1, 7.1)
     ax_top.set_yticks(np.arange(1, 8, 1))
 
-    ax_mid.set_ylim(0.2, 0.9)
-    ax_mid.set_yticks(np.arange(0.2, 0.91, 0.2))
+    # ax_mid.set_ylim(0.3, 0.9)
+    # ax_mid.set_yticks(np.arange(0.4, 0.91, 0.2))
 
-    ax_bot.set_ylim(0.0, 0.145)
-    ax_bot.set_yticks(np.arange(0.0, 0.141, 0.04))
+    ax_bot.set_ylim(0.0, 0.5)
+    ax_bot.set_yticks(np.arange(0.0, 0.51, 0.05))
 
     # Share x: only show tick labels on bottom
     ax_bot.set_xticks(x)
     ax_bot.set_xticklabels(plot_x_axis, rotation=90)
     ax_top.tick_params(labelbottom=False)
-    ax_mid.tick_params(labelbottom=False)
+    # ax_mid.tick_params(labelbottom=False)
 
     # Hide touching spines to create the "break"
-    for a in (ax_top, ax_mid):
-        a.spines['bottom'].set_visible(False)
-    for a in (ax_mid, ax_bot):
-        a.spines['top'].set_visible(False)
+    # for a in (ax_top, ax_bot):
+    ax_top.spines['bottom'].set_visible(False)
+    # for a in (ax_bot, ax_top):
+    ax_bot.spines['top'].set_visible(False)
 
     # Draw diagonal "break marks"
     d = 0.5  # size of diagonals relative to marker
@@ -255,9 +255,9 @@ def midpoint_normalized_graph(calc, plot_x_axis):
                   linestyle="none", color='k', mec='k', mew=1, clip_on=False)
     # between top and middle
     ax_top.plot([0, 1], [0, 0], transform=ax_top.transAxes, **kwargs)
-    ax_mid.plot([0, 1], [1, 1], transform=ax_mid.transAxes, **kwargs)
+    # ax_mid.plot([0, 1], [1, 1], transform=ax_mid.transAxes, **kwargs)
     # between middle and bottom
-    ax_mid.plot([0, 1], [0, 0], transform=ax_mid.transAxes, **kwargs)
+    # ax_mid.plot([0, 1], [0, 0], transform=ax_mid.transAxes, **kwargs)
     ax_bot.plot([0, 1], [1, 1], transform=ax_bot.transAxes, **kwargs)
 
     # Grids

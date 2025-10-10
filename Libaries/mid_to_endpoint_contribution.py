@@ -127,7 +127,7 @@ def mid_to_endpoint_contribution_plot(results_df):
                 leg_color,
                 leg_txt,
                 loc='upper left',
-                bbox_to_anchor=(0.995, 1.08),
+                bbox_to_anchor=(0.995, 0.98),
                 ncol=1,
                 frameon=False
                 )
