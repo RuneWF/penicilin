@@ -189,7 +189,6 @@ def extract_production_amounts(act, pen, country_ISO, act_check, func_unit_unq, 
                             amount = up["amount"]
                         append_func_unit(act, exc_act, act_check, func_unit_unq, func_unit_countries, upstream_quantity=amount)
                     
-
 def fill_penicillin_dct_keys(pen_type, countries_db):
     func_unit_countries =  {}
     for pt in pen_type:
@@ -372,11 +371,11 @@ def countries_sens_plot(calc):
                     edgecolor="k",
                     zorder=10
                 )
-        axes[p].set_title(f"{title_identifier[p]} 1 {penicillin_G_V_to_IV_oral(pen_type[p])} treatment", loc="left")
+        axes[p].set_title(f"{title_identifier[p]} A SSD {penicillin_G_V_to_IV_oral(pen_type[p])} treatment", loc="left")
         axes[p].set_xticklabels(list(country_order.values()), rotation=0)
         axes[p].grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
         set_y_ticks(p, axes[p])
-        axes[p].set_ylabel('grams of CO$_2$-eq per treatment')
+        axes[p].set_ylabel('grams of CO$_2$-eq per SSD treatment')
         if p == 1:
             leg_color, _ = fig.gca().get_legend_handles_labels()
             leg_txt = list(df.index)

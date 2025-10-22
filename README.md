@@ -27,4 +27,4 @@ This project is licensed under the MIT License.
 
 ## Contact
 
-For questions, contact the repository maintainer.
+For questions, contact ruw@igt.sdu.dk

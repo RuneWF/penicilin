@@ -100,7 +100,7 @@ def endpoint_new_name():
     endpoints_new_name = [
             "Ecosystem damage",
             "Human health damage",
-            "Natural resources damage"
+            "Natural resources scarcity"
         ]
     
     return endpoints_new_name
@@ -231,8 +231,6 @@ def midpoint_normalized_graph(calc, plot_x_axis):
     ax_top.set_ylim(1, 7.1)
     ax_top.set_yticks(np.arange(1, 8, 1))
 
-    # ax_mid.set_ylim(0.3, 0.9)
-    # ax_mid.set_yticks(np.arange(0.4, 0.91, 0.2))
 
     ax_bot.set_ylim(0.0, 0.5)
     ax_bot.set_yticks(np.arange(0.0, 0.51, 0.05))
@@ -244,9 +242,7 @@ def midpoint_normalized_graph(calc, plot_x_axis):
     # ax_mid.tick_params(labelbottom=False)
 
     # Hide touching spines to create the "break"
-    # for a in (ax_top, ax_bot):
     ax_top.spines['bottom'].set_visible(False)
-    # for a in (ax_bot, ax_top):
     ax_bot.spines['top'].set_visible(False)
 
     # Draw diagonal "break marks"
@@ -255,9 +251,6 @@ def midpoint_normalized_graph(calc, plot_x_axis):
                   linestyle="none", color='k', mec='k', mew=1, clip_on=False)
     # between top and middle
     ax_top.plot([0, 1], [0, 0], transform=ax_top.transAxes, **kwargs)
-    # ax_mid.plot([0, 1], [1, 1], transform=ax_mid.transAxes, **kwargs)
-    # between middle and bottom
-    # ax_mid.plot([0, 1], [0, 0], transform=ax_mid.transAxes, **kwargs)
     ax_bot.plot([0, 1], [1, 1], transform=ax_bot.transAxes, **kwargs)
 
     # Grids
@@ -265,8 +258,8 @@ def midpoint_normalized_graph(calc, plot_x_axis):
         a.grid(axis='y', linestyle='--', alpha=0.6, zorder=0)
 
     # Labels, title, legend
-    fig.supylabel('Milliperson equivalent per treatment', x=0.03)
-    ax_top.set_title("Normalization results for 1 treatment")
+    fig.supylabel('Milliperson equivalent per SSD treatment', x=0.03)
+    ax_top.set_title("Normalization results for a SSD treatment")
 
     handles, labels = ax_top.get_legend_handles_labels()
     by_label = dict(zip(labels, handles))  # remove duplicates
@@ -493,8 +486,6 @@ def text_for_x_axis():
 def hatch_styles():
     return ["\\\\", "..", "++", "**", "O."]
 
-
-
 def sort_act_in_production(dct):
     prod_dct = {}
     dct_sorted = {}
@@ -543,7 +534,7 @@ def penG_contribution_plot(calc):
 
                 bottom[idx] += item
 
-    ax.set_title("Contribution analysis for 1 IV treatment")
+    ax.set_title("Contribution analysis for a SSD IV treatment")
 
     leg_color, _ = fig.gca().get_legend_handles_labels()
     

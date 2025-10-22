@@ -397,7 +397,7 @@ def plot_monte_carlo_background_uncertainty(samples=1000, calc=False):
         bp = ax.boxplot(data, patch_artist = True, zorder=3)
         ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
         ax.set_xticklabels(list(df_categorized_uncert.index), rotation=45)
-        ax.set_ylabel('grams of CO$_2$-eq per treatment')
+        ax.set_ylabel('grams of CO$_2$-eq per SSD treatment')
         ax.set_title(f'{title_identifier[a]}Penicillin {col[-1]} production', loc="left")
         
         for patch, _ in zip(bp['boxes'], blue):

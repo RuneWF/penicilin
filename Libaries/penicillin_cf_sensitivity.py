@@ -220,7 +220,7 @@ def penicillin_cf_sensitivity_plot():
         set_legend(axes_counter, ax, colors, df_cf, marker_dct)
 
         ax.set_xticklabels(penicillin_treatment_name, rotation=0)
-        ax.set_title(f"{title_identifier[axes_counter]}{get_cf_excel_sheet_names()[axes_counter]}", loc="left")
+        ax.set_title(f"{title_identifier[axes_counter]}{get_cf_excel_sheet_names()[axes_counter]} - SSD", loc="left")
         ax.set_ylabel(unit)
         ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
         set_y_axis_value(axes_counter, ax)

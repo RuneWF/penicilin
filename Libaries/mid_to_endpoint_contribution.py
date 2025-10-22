@@ -70,11 +70,11 @@ def get_mid_to_end_contribution_dct(results_df):
 
 
 def mid_to_end_contribution_title_text(act, ax, a):
-    title_identifier = [r"$\bf{Fig\ A:}$ ", r"$\bf{Fig\ B:}$ "]
+    title_identifier = [r"$\bf{Fig\ A:}$", r"$\bf{Fig\ B:}$"]
     if "V" in str(act):
-        return ax.set_title(f"{title_identifier[a]} Oral treatment", loc="left")
+        return ax.set_title(f"{title_identifier[a]} A SSD oral treatment ", loc="left")
     else:
-        return ax.set_title(f"{title_identifier[a]} IV treatment", loc="left")
+        return ax.set_title(f"{title_identifier[a]} A SSD IV treatment", loc="left")
     
 def mid_to_endpoint_contribution_plot(results_df):
 

@@ -440,7 +440,6 @@ def LCIA_eol(excel_path):
 def obtain_results(calc):
     save_dir = init.results_folder(init.results_path,"sensitivity")
     excel_path = init.join_path(save_dir, r"sens_eol_penG.xlsx")
-    func_unit = obtain_func_unit() 
     if os.path.isfile(excel_path):
         if calc:
             df = LCIA_eol(excel_path) 
@@ -508,7 +507,7 @@ def sens_EoL_plot(calc=False):
     df.T.plot(
         kind='bar',
         stacked=True,
-        title="GWP for different MWT for auxillary product for IV treatment",
+        title="GWP for different MWT for auxillary product for a SSD IV treatment",
         color=colors,
         ax=ax,
         width=width,
@@ -534,7 +533,7 @@ def sens_EoL_plot(calc=False):
             frameon=False
         )
 
-    ax.set_ylabel('kilograms of CO$_2$-eq per treatment')
+    ax.set_ylabel('kilograms of CO$_2$-eq per SSD treatment')
     y_ticks = np.linspace(-0.3, 1, 14)
     ax.set_yticks(y_ticks)
     ax.set_ylim(-0.3, 1.01)
@@ -587,8 +586,8 @@ def clinical_treatment_initialization():
     comb_impact_lst = np.array(list(comb_impact_dct.values()))
     comb_impact = comb_impact_lst.sum()
 
-    print(f"{idx_lst[1]} saves {round((1-oral_impact/iv_impact)*100,0)}%")
-    print(f"{idx_lst[2]} saves {round((1-comb_impact/iv_impact)*100,0)}%")
+    print(f"{idx_lst[1]} saves {round((oral_impact/iv_impact)*100,0)}%")
+    print(f"{idx_lst[2]} saves {round((comb_impact/iv_impact)*100,0)}%")
 
     return idx_lst, df_pneumonia
 
@@ -598,8 +597,8 @@ def clinical_treatment_plot():
     # Create the plot
     colors = init.color_range(colorname="coolwarm", color_quantity=2)
     width_in, height_in, dpi = init.plot_dimensions()
-    _, ax = plt.subplots(figsize=(width_in, height_in), dpi=dpi)
-    bar_width = 1 / (len(idx_lst) + 1)
+    _, ax = plt.subplots(figsize=(width_in/2, height_in*0.75), dpi=dpi)
+    bar_width = 1 / (len(idx_lst) + 1) * 2
 
     # Plot individual bars for the first two scenarios
     for i in range(2):
@@ -615,13 +614,14 @@ def clinical_treatment_plot():
     # Customize the plot
     ax.set_xticks([0, 1, 2])
     ax.set_xticklabels(df_pneumonia.index)
-    ax.set_ylabel('kilograms of CO$_2$-eq per treatment')
-    ax.set_title("GWP for clinical treatment scenarios of pneumonia")
+    ax.set_ylabel('kilograms of CO$_2$-eq per full treatment')
+    ax.set_title("GWP for a full clinical treatment of pneumonia")
     # y_ticks = np.linspace(0, 20, 11)
     # ax.set_yticks(y_ticks)
     # ax.set_ylim(0, 20.01)
     ax.legend(
-        labels=idx_lst[:2], 
+        labels=idx_lst[:2],
+        bbox_to_anchor=(1, 1.03), 
         frameon=False)
     ax.grid(axis='y', linestyle='--', alpha=0.7, zorder=-0)
     plt.tight_layout()
