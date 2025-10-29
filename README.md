@@ -1,4 +1,4 @@
-# Penicillin Project
+# Penicillin LCA
 
 ## 🧪 Overview
 This repository contains scripts and data related to the environmental impact of penicillin from cradle to grave through an atributional LCA. It is part of a scientific research initiative, involving modeling and data analysis.
