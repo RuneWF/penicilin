@@ -5,7 +5,6 @@ import pandas as pd
 import bw2data as bd
 import bw2calc as bc
 import matplotlib.pyplot as plt
-from scipy.stats import ttest_ind
 from pathlib import Path
 
 

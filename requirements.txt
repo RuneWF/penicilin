@@ -1,0 +1,17 @@
+numpy
+pandas
+matplotlib
+re
+pathlib
+sys
+copy
+os
+ast
+scipy
+math
+uuid
+importlib
+brightway2
+bw2data
+bw2calc
+bw2io

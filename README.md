@@ -1,30 +1,25 @@
 # Penicillin Project
 
-This repository contains resources and scripts related to penicillin research.
+## 🧪 Overview
+This repository contains scripts and data related to the environmental impact of penicillin from cradle to grave through an atributional LCA. It is part of a scientific research initiative, involving modeling and data analysis.
 
-## Folder Structure
+## 📁 Repository Structure
+- `Jupyter scripts/`: Contains notebooks used for running the custom libraries for data analysis and visualization.
+- `Libaries/`: Custom libraries used in the project.
+- `data/`: Raw or processed datasets used in the analysis.
 
-- `data/` - Contains datasets and experimental results.
-    - base_case_elementary_flow_analysis.xlsx contains the results for which elementary flow contributes to the impact in the given impact category
-    - database.xlsx contain the Life Cycle Inventory (LCI) also for the sensitivity analysis'
-    - lci_tables.txt contains the LCI tables to input in a LaTex format
-    - LCI_temp.xlsx is the empty template for the LCI tables used to create the file above
-    
+## 🚀 Getting Started
 
-- `Libaries/` - Python scripts for data analysis and visualization.
-- `Jupyter scripts/` - Jupyter notebooks for exploratory analysis.
+### Prerequisites
+Make sure you have the following installed:
+- Python 3.8+
+- Jupyter Notebook
+- Required libraries (see below)
 
+### Installation
+Clone the repository:
+```bash
+git clone https://github.com/RuneWF/penicilin.git
+cd penicilin
 
-## Getting Started
-
-1. Clone the repository.
-2. Install required dependencies from `requirements.txt`.
-3. Explore the notebooks and scripts for analysis.
-
-## License
-
-This project is licensed under the MIT License.
-
-## Contact
-
-For questions, contact ruw@igt.sdu.dk
+pip install -r requirements.txt

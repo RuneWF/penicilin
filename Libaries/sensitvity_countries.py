@@ -3,10 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import bw2data as bd
-import bw2data as bd
 import brightway2 as bw
 import bw2calc as bc
-import numpy as np
 from pathlib import Path
 from uuid import uuid4
 
